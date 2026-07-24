@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
+import axios from 'axios';
 import { useAuthStore } from '@/store/authStore';
 import {
   ResponsiveContainer,
@@ -58,19 +59,46 @@ export default function ReportsPage() {
   const [dateFilter, setDateFilter] = useState<'today' | 'yesterday' | 'custom'>('custom');
   const [printReportData, setPrintReportData] = useState<any | null>(null);
 
-  // Auto-Print Shift Report Handler with DOM validation
+  // Auto-Print Shift Report Handler with Local Print Agent integration
   useEffect(() => {
     if (printReportData) {
-      const checkAndPrint = () => {
-        const element = document.getElementById('print-shift-report-section');
-        if (element) {
-          window.print();
+      const runPrint = async () => {
+        try {
+          const reportPayload = {
+            restaurantName: 'Kyra Cafe',
+            reportType: 'SHIFT' as const,
+            cashierName: printReportData.cashier?.name || 'Cashier',
+            generatedAt: new Date(printReportData.closingTime || Date.now()).toLocaleString(),
+            shiftCode: printReportData.id?.substring(0, 8),
+            openingCash: Number(printReportData.openingCash),
+            cashSales: Number(printReportData.closingCashSales || 0),
+            cardSales: Number(printReportData.closingCardSales || 0),
+            upiSales: Number(printReportData.closingUpiSales || 0),
+            expenses: Number(printReportData.closingExpenses || 0),
+            expectedCash: Number(printReportData.expectedCash || 0),
+            actualCash: Number(printReportData.actualCash || 0),
+            difference: Number(printReportData.cashDifference || 0),
+            categorySales: printReportData.categorySales || []
+          };
+
+          await axios.post('http://localhost:4000/print/report', reportPayload, { timeout: 2000 });
           setPrintReportData(null);
-        } else {
-          setTimeout(checkAndPrint, 100);
+        } catch (err) {
+          console.warn('Local print agent offline. Falling back to browser printing.', err);
+          const checkAndPrint = () => {
+            const element = document.getElementById('print-shift-report-section');
+            if (element) {
+              window.print();
+              setPrintReportData(null);
+            } else {
+              setTimeout(checkAndPrint, 100);
+            }
+          };
+          checkAndPrint();
         }
       };
-      checkAndPrint();
+
+      runPrint();
     }
   }, [printReportData]);
 

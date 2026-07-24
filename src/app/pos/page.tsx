@@ -8,6 +8,7 @@ import { useAuthStore } from '@/store/authStore';
 import { useCartStore, CartItem, OrderType } from '@/store/cartStore';
 import { useShiftStore } from '@/store/shiftStore';
 import api from '@/lib/api';
+import axios from 'axios';
 import {
   Search,
   ShoppingCart,
@@ -78,23 +79,131 @@ export default function PosPage() {
 
   // Hydration guard
   const [mounted, setMounted] = useState(false);
+  const [printAgentStatus, setPrintAgentStatus] = useState<'ONLINE' | 'OFFLINE' | 'CHECKING'>('CHECKING');
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  // Auto-Print Handler with DOM validation
+  useEffect(() => {
+    if (!mounted) return;
+    const checkStatus = async () => {
+      try {
+        await axios.get('http://localhost:4000/health', { timeout: 1200 });
+        setPrintAgentStatus('ONLINE');
+      } catch (e) {
+        setPrintAgentStatus('OFFLINE');
+      }
+    };
+    checkStatus();
+    const interval = setInterval(checkStatus, 5000);
+    return () => clearInterval(interval);
+  }, [mounted]);
+
+  // Auto-Print Handler with Local Print Agent integration
   useEffect(() => {
     if (receiptData) {
-      const checkAndPrint = () => {
-        const element = document.getElementById('print-receipt-section');
-        if (element) {
-          window.print();
-        } else {
-          setTimeout(checkAndPrint, 100);
+      const runPrint = async () => {
+        try {
+          const dateObj = new Date(receiptData.createdAt);
+          const formattedDate = dateObj.toLocaleDateString();
+          const formattedTime = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+          const receiptItems = receiptData.items.map((i: any) => ({
+            name: i.dish?.name || 'Dish Item',
+            quantity: i.quantity,
+            price: Number(i.price),
+            amount: Number(i.price) * i.quantity,
+          }));
+
+          // Group taxes by rate
+          const taxGroups: Record<number, number> = {};
+          receiptData.items.forEach((i: any) => {
+            const rate = Number(i.taxRate || 0);
+            const amt = (Number(i.price) * i.quantity) * (rate / 100);
+            taxGroups[rate] = (taxGroups[rate] || 0) + amt;
+          });
+
+          const taxSummary: any[] = [];
+          Object.entries(taxGroups).forEach(([rateStr, amount]) => {
+            const rate = Number(rateStr);
+            taxSummary.push({
+              name: 'CGST',
+              rate: rate / 2,
+              amount: amount / 2,
+            });
+            taxSummary.push({
+              name: 'SGST',
+              rate: rate / 2,
+              amount: amount / 2,
+            });
+          });
+
+          // Fetch configs from local print agent to check if printing is enabled
+          const configRes = await axios.get('http://localhost:4000/config', { timeout: 1500 });
+          const printConfig = configRes.data;
+
+          if (printConfig && !printConfig.autoPrintEnabled) {
+            console.log('Auto-printing is disabled in print agent settings.');
+            return;
+          }
+
+          const receiptPayload = {
+            restaurantName: 'Kyra Cafe',
+            restaurantAddress: '1st Cross Road, Bangalore',
+            restaurantPhone: '9876543210',
+            gstNumber: '29AAAAA1111A1Z1',
+            billNumber: receiptData.orderNumber.toString(),
+            date: formattedDate,
+            time: formattedTime,
+            tableNumber: receiptData.tableName || undefined,
+            captainName: receiptData.cashier,
+            cashierName: receiptData.cashier,
+            orderType: receiptData.type,
+            items: receiptItems,
+            subtotal: Number(receiptData.subtotal),
+            discount: Number(receiptData.discountTotal),
+            taxSummary,
+            grandTotal: Number(receiptData.grandTotal),
+            paymentMethod: receiptData.paymentMethod,
+            customerName: receiptData.customerName || undefined,
+            customerPhone: receiptData.customerPhone || undefined,
+            qrCodeUrl: `https://kyrapos.com/verify/${receiptData.orderNumber}`,
+          };
+
+          // A. Print Customer Copy
+          await axios.post('http://localhost:4000/print/customer', receiptPayload, { timeout: 2000 });
+
+          // B. Print Kitchen Copy (KOT)
+          const kotPayload = {
+            restaurantName: 'Kyra Cafe',
+            orderNumber: receiptData.orderNumber.toString(),
+            tableNumber: receiptData.tableName || 'Takeaway',
+            captainName: receiptData.cashier,
+            items: receiptData.items.map((i: any) => ({
+              name: i.dish?.name || 'Dish Item',
+              quantity: i.quantity,
+              notes: i.notes || undefined,
+            })),
+            time: formattedTime,
+          };
+          await axios.post('http://localhost:4000/print/kot', kotPayload, { timeout: 2000 });
+
+        } catch (err) {
+          console.warn('Local print agent offline or failed. Falling back to browser printing.', err);
+          const checkAndPrint = () => {
+            const element = document.getElementById('print-receipt-section');
+            if (element) {
+              window.print();
+            } else {
+              setTimeout(checkAndPrint, 100);
+            }
+          };
+          checkAndPrint();
         }
       };
-      checkAndPrint();
+
+      runPrint();
     }
   }, [receiptData]);
 
@@ -825,6 +934,25 @@ export default function PosPage() {
             >
               {isProcessing ? 'Processing billing...' : 'Complete & Print Bill'}
             </button>
+
+            {/* Print Agent Connection Status */}
+            <div className="flex items-center justify-between py-1.5 px-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xxxs font-semibold">
+              <span className="flex items-center gap-1.5">
+                <span className={`h-1.5 w-1.5 rounded-full ${printAgentStatus === 'ONLINE' ? 'bg-emerald-500' : 'bg-red-500'}`}></span>
+                <span className="text-slate-500">
+                  {printAgentStatus === 'ONLINE' ? '🟢 Print Agent Connected' : '🔴 Print Agent Offline'}
+                </span>
+              </span>
+              {printAgentStatus !== 'ONLINE' && (
+                <a 
+                  href="/KyraPrintAgentSetup.exe"
+                  download
+                  className="text-primary hover:underline font-bold"
+                >
+                  Download Setup
+                </a>
+              )}
+            </div>
 
             {/* Quick Actions (Discount, Hold, Resume, Clear) */}
             <div className="grid grid-cols-4 gap-1.5 pt-1">

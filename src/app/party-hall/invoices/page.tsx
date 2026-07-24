@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useSearchParams } from 'next/navigation';
 import api from '@/lib/api';
+import axios from 'axios';
 import {
   FileText,
   Search,
@@ -108,8 +109,84 @@ export default function InvoicesList() {
     return inv.booking.payments.reduce((sum, p) => sum + Number(p.amount), 0);
   };
 
-  const handlePrint = () => {
-    window.print();
+
+  const handlePrint = async () => {
+    if (!selectedInvoice) return;
+    try {
+      const booking = selectedInvoice.booking;
+      const formattedDate = new Date(selectedInvoice.createdAt).toLocaleDateString();
+      const formattedTime = new Date(selectedInvoice.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+      // Map booking charges to receipt items list
+      const receiptItems = [
+        {
+          name: `${booking.hall.name} Rent`,
+          quantity: 1,
+          price: Number(booking.hallRent),
+          amount: Number(booking.hallRent)
+        }
+      ];
+
+      if (Number(booking.decorCharges) > 0) {
+        receiptItems.push({ name: 'Decor Charges', quantity: 1, price: Number(booking.decorCharges), amount: Number(booking.decorCharges) });
+      }
+      if (Number(booking.foodCharges) > 0) {
+        receiptItems.push({ name: 'Food/Catering', quantity: 1, price: Number(booking.foodCharges), amount: Number(booking.foodCharges) });
+      }
+      if (Number(booking.soundCharges) > 0) {
+        receiptItems.push({ name: 'Sound Setup', quantity: 1, price: Number(booking.soundCharges), amount: Number(booking.soundCharges) });
+      }
+      if (Number(booking.generatorCharges) > 0) {
+        receiptItems.push({ name: 'Generator Charges', quantity: 1, price: Number(booking.generatorCharges), amount: Number(booking.generatorCharges) });
+      }
+      if (Number(booking.cleaningCharges) > 0) {
+        receiptItems.push({ name: 'Cleaning Charges', quantity: 1, price: Number(booking.cleaningCharges), amount: Number(booking.cleaningCharges) });
+      }
+      if (Number(booking.extraCharges) > 0) {
+        receiptItems.push({ name: 'Extra Charges', quantity: 1, price: Number(booking.extraCharges), amount: Number(booking.extraCharges) });
+      }
+
+      const receiptPayload = {
+        restaurantName: 'Kyra Banquet Hall',
+        restaurantAddress: '1st Cross Road, Bangalore',
+        restaurantPhone: '9876543210',
+        gstNumber: '29AAAAA1111A1Z1',
+        billNumber: `INV-${selectedInvoice.invoiceNumber.toString().padStart(5, '0')}`,
+        date: formattedDate,
+        time: formattedTime,
+        tableNumber: undefined,
+        captainName: 'Manager',
+        cashierName: 'Manager',
+        orderType: 'DINE_IN' as const,
+        items: receiptItems,
+        subtotal: Number(booking.hallRent) + 
+                  Number(booking.decorCharges) + 
+                  Number(booking.foodCharges) + 
+                  Number(booking.soundCharges) + 
+                  Number(booking.generatorCharges) + 
+                  Number(booking.cleaningCharges) + 
+                  Number(booking.extraCharges),
+        discount: Number(booking.discount),
+        taxSummary: [
+          {
+            name: 'GST',
+            rate: 18,
+            amount: Number(booking.gst)
+          }
+        ],
+        grandTotal: Number(booking.grandTotal),
+        paymentMethod: booking.payments[0]?.method || 'CASH',
+        customerName: booking.customer.name,
+        customerPhone: booking.customer.mobile,
+        footerMessage: 'Thank you for booking with us!',
+        qrCodeUrl: `https://kyrapos.com/invoice/verify/${selectedInvoice.id}`
+      };
+
+      await axios.post('http://localhost:4000/print/customer', receiptPayload, { timeout: 2000 });
+    } catch (err) {
+      console.warn('Local print agent offline. Falling back to browser printing.', err);
+      window.print();
+    }
   };
 
   return (
