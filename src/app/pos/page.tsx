@@ -9,6 +9,9 @@ import { useCartStore, CartItem, OrderType } from '@/store/cartStore';
 import { useShiftStore } from '@/store/shiftStore';
 import api from '@/lib/api';
 import axios from 'axios';
+import { PrintAgentClient } from '@/lib/printAgentClient';
+import { normalizeOrder, NormalizedOrder } from '@/lib/orderNormalizer';
+import { ReceiptErrorBoundary } from '@/components/ReceiptErrorBoundary';
 import {
   Search,
   ShoppingCart,
@@ -24,7 +27,10 @@ import {
   HelpCircle,
   Sparkles,
   ClipboardList,
-  Plus
+  Plus,
+  AlertTriangle,
+  Printer,
+  RefreshCw
 } from 'lucide-react';
 
 interface Category {
@@ -35,33 +41,26 @@ interface Category {
 interface Dish {
   id: string;
   name: string;
-  price: string;
-  taxRate: string;
-  isAvailable: boolean;
-  imageUrl: string | null;
+  price: number;
+  taxRate: number;
   categoryId: string;
+  category?: Category;
+  imageUrl?: string;
+  isAvailable: boolean;
 }
 
-export default function PosPage() {
+export default function POSPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
-
-  const user = useAuthStore((state) => state.user);
-  const token = useAuthStore((state) => state.token);
-  const activeShift = useShiftStore((state) => state.activeShift);
-
+  const { token, user } = useAuthStore();
+  const { activeShift } = useShiftStore();
   const cart = useCartStore();
 
-  // Local Filter UI States
+  // Local state
   const [selectedCatId, setSelectedCatId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
-
-  // Dialog Visibility states
-  const [showDiscountModal, setShowDiscountModal] = useState(false);
   const [showHeldModal, setShowHeldModal] = useState(false);
-  const [showCheckoutModal, setShowCheckoutModal] = useState(false);
-
-  // Discount Temporary inputs
+  const [showDiscountModal, setShowDiscountModal] = useState(false);
   const [tempDiscount, setTempDiscount] = useState(0);
   const [tempDiscountType, setTempDiscountType] = useState<'FLAT' | 'PERCENT'>('FLAT');
 
@@ -74,8 +73,9 @@ export default function PosPage() {
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
 
-  // Receipt printable data
+  // Receipt printable data & Last order state
   const [receiptData, setReceiptData] = useState<any | null>(null);
+  const [lastCompletedOrder, setLastCompletedOrder] = useState<{ order: any; paymentMethod: string } | null>(null);
 
   // Hydration guard
   const [mounted, setMounted] = useState(false);
@@ -88,124 +88,120 @@ export default function PosPage() {
   useEffect(() => {
     if (!mounted) return;
     const checkStatus = async () => {
-      try {
-        await axios.get('http://localhost:4000/health', { timeout: 1200 });
-        setPrintAgentStatus('ONLINE');
-      } catch (e) {
-        setPrintAgentStatus('OFFLINE');
-      }
+      const res = await PrintAgentClient.getHealth();
+      setPrintAgentStatus(res.success ? 'ONLINE' : 'OFFLINE');
     };
     checkStatus();
     const interval = setInterval(checkStatus, 5000);
     return () => clearInterval(interval);
   }, [mounted]);
 
-  // Auto-Print Handler with Local Print Agent integration
-  useEffect(() => {
-    if (receiptData) {
-      const runPrint = async () => {
-        try {
-          const dateObj = new Date(receiptData.createdAt);
-          const formattedDate = dateObj.toLocaleDateString();
-          const formattedTime = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  // Print Alert State for Non-blocking retry handling
+  const [printErrorAlert, setPrintErrorAlert] = useState<{ orderData: any; paymentMethod: string; message: string } | null>(null);
 
-          const receiptItems = receiptData.items.map((i: any) => ({
-            name: i.dish?.name || 'Dish Item',
-            quantity: i.quantity,
-            price: Number(i.price),
-            amount: Number(i.price) * i.quantity,
-          }));
+  // Background Non-blocking Print Dispatcher using PrintAgentClient & normalizeOrder
+  const dispatchBackgroundPrint = async (completedOrder: any, payMethod: string) => {
+    if (!completedOrder) return;
+    const normalized = normalizeOrder(completedOrder, [], { user, paymentMethod: payMethod });
+    console.log('[Billing] [Background Print] Initiating print job via PrintAgentClient for Order #', normalized.orderNumber);
+    setPrintErrorAlert(null);
+    setLastCompletedOrder({ order: normalized, paymentMethod: payMethod });
 
-          // Group taxes by rate
-          const taxGroups: Record<number, number> = {};
-          receiptData.items.forEach((i: any) => {
-            const rate = Number(i.taxRate || 0);
-            const amt = (Number(i.price) * i.quantity) * (rate / 100);
-            taxGroups[rate] = (taxGroups[rate] || 0) + amt;
-          });
+    try {
+      const dateObj = new Date(normalized.createdAt);
+      const formattedDate = dateObj.toLocaleDateString();
+      const formattedTime = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-          const taxSummary: any[] = [];
-          Object.entries(taxGroups).forEach(([rateStr, amount]) => {
-            const rate = Number(rateStr);
-            taxSummary.push({
-              name: 'CGST',
-              rate: rate / 2,
-              amount: amount / 2,
-            });
-            taxSummary.push({
-              name: 'SGST',
-              rate: rate / 2,
-              amount: amount / 2,
-            });
-          });
+      const receiptItems = normalized.items.map((i) => ({
+        name: i.name,
+        quantity: i.quantity,
+        price: i.price,
+        amount: i.amount,
+      }));
 
-          // Fetch configs from local print agent to check if printing is enabled
-          const configRes = await axios.get('http://localhost:4000/config', { timeout: 1500 });
-          const printConfig = configRes.data;
+      // Group taxes by rate
+      const taxGroups: Record<number, number> = {};
+      normalized.items.forEach((i) => {
+        const rate = i.taxRate;
+        const amt = i.amount * (rate / 100);
+        taxGroups[rate] = (taxGroups[rate] || 0) + amt;
+      });
 
-          if (printConfig && !printConfig.autoPrintEnabled) {
-            console.log('Auto-printing is disabled in print agent settings.');
-            return;
-          }
+      const taxSummary: any[] = [];
+      Object.entries(taxGroups).forEach(([rateStr, amount]) => {
+        const rate = Number(rateStr);
+        taxSummary.push({
+          name: 'CGST',
+          rate: rate / 2,
+          amount: amount / 2,
+        });
+        taxSummary.push({
+          name: 'SGST',
+          rate: rate / 2,
+          amount: amount / 2,
+        });
+      });
 
-          const receiptPayload = {
-            restaurantName: 'Kyra Cafe',
-            restaurantAddress: '1st Cross Road, Bangalore',
-            restaurantPhone: '9876543210',
-            gstNumber: '29AAAAA1111A1Z1',
-            billNumber: receiptData.orderNumber.toString(),
-            date: formattedDate,
-            time: formattedTime,
-            tableNumber: receiptData.tableName || undefined,
-            captainName: receiptData.cashier,
-            cashierName: receiptData.cashier,
-            orderType: receiptData.type,
-            items: receiptItems,
-            subtotal: Number(receiptData.subtotal),
-            discount: Number(receiptData.discountTotal),
-            taxSummary,
-            grandTotal: Number(receiptData.grandTotal),
-            paymentMethod: receiptData.paymentMethod,
-            customerName: receiptData.customerName || undefined,
-            customerPhone: receiptData.customerPhone || undefined,
-            qrCodeUrl: `https://kyrapos.com/verify/${receiptData.orderNumber}`,
-          };
-
-          // A. Print Customer Copy
-          await axios.post('http://localhost:4000/print/customer', receiptPayload, { timeout: 2000 });
-
-          // B. Print Kitchen Copy (KOT)
-          const kotPayload = {
-            restaurantName: 'Kyra Cafe',
-            orderNumber: receiptData.orderNumber.toString(),
-            tableNumber: receiptData.tableName || 'Takeaway',
-            captainName: receiptData.cashier,
-            items: receiptData.items.map((i: any) => ({
-              name: i.dish?.name || 'Dish Item',
-              quantity: i.quantity,
-              notes: i.notes || undefined,
-            })),
-            time: formattedTime,
-          };
-          await axios.post('http://localhost:4000/print/kot', kotPayload, { timeout: 2000 });
-
-        } catch (err) {
-          console.warn('Local print agent offline or failed. Falling back to browser printing.', err);
-          const checkAndPrint = () => {
-            const element = document.getElementById('print-receipt-section');
-            if (element) {
-              window.print();
-            } else {
-              setTimeout(checkAndPrint, 100);
-            }
-          };
-          checkAndPrint();
-        }
+      const receiptPayload = {
+        restaurantName: 'Kyra Cafe',
+        restaurantAddress: '1st Cross Road, Bangalore',
+        restaurantPhone: '9876543210',
+        gstNumber: '29AAAAA1111A1Z1',
+        billNumber: normalized.orderNumber,
+        date: formattedDate,
+        time: formattedTime,
+        tableNumber: normalized.tableName || undefined,
+        captainName: normalized.cashierName,
+        cashierName: normalized.cashierName,
+        orderType: normalized.type,
+        items: receiptItems,
+        subtotal: normalized.subtotal,
+        discount: normalized.discountTotal,
+        taxSummary,
+        grandTotal: normalized.grandTotal,
+        paymentMethod: payMethod,
+        customerName: normalized.customerName !== 'Walk-in Customer' ? normalized.customerName : undefined,
+        customerPhone: normalized.customerPhone || undefined,
+        qrCodeUrl: `https://kyrapos.com/verify/${normalized.orderNumber}`,
       };
 
-      runPrint();
+      const resCustomer = await PrintAgentClient.printCustomerReceipt(receiptPayload);
+
+      const kotPayload = {
+        restaurantName: 'Kyra Cafe',
+        orderNumber: normalized.orderNumber,
+        tableNumber: normalized.tableName || 'Takeaway',
+        captainName: normalized.cashierName,
+        items: normalized.items.map((i) => ({
+          name: i.name,
+          quantity: i.quantity,
+          notes: i.notes || undefined,
+        })),
+        time: formattedTime,
+      };
+
+      const resKot = await PrintAgentClient.printKot(kotPayload);
+
+      if (resCustomer.success && resKot.success) {
+        console.log('[Billing] [Background Print] Print jobs queued successfully via PrintAgentClient.');
+      } else {
+        console.warn('[Billing] [Background Print] Print agent warning:', resCustomer.error || resKot.error);
+        setPrintErrorAlert({
+          orderData: normalized,
+          paymentMethod: payMethod,
+          message: `Order #${normalized.orderNumber} saved, but print agent was unreachable.`
+        });
+      }
+
+    } catch (err: any) {
+      console.warn('[Billing] [Background Print] Printing exception:', err);
+      setPrintErrorAlert({
+        orderData: normalized,
+        paymentMethod: payMethod,
+        message: `Order #${normalized.orderNumber} saved, but printing failed.`
+      });
     }
-  }, [receiptData]);
+  };
 
   // Search input ref
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -489,9 +485,10 @@ export default function PosPage() {
 
   // Direct Checkout & Payment Handler
   async function handleDirectCheckoutSubmit() {
-    if (cart.items.length === 0) return;
+    if (cart.items.length === 0 || isProcessing) return;
     setCheckoutError(null);
     setIsProcessing(true);
+    console.log('[Billing] 1. Direct checkout submission started.');
 
     // Validate Mixed payment split
     if (paymentMethod === 'MIXED') {
@@ -505,8 +502,10 @@ export default function PosPage() {
       }
     }
 
+    let completedOrder: any = null;
+
     try {
-      // A. Post the order to DB
+      console.log('[Billing] 2. Submitting order to DB...');
       const orderResponse = await api.post('/orders', {
         tableId: cart.tableId,
         type: cart.orderType,
@@ -521,50 +520,57 @@ export default function PosPage() {
       });
 
       const orderId = orderResponse.data.id;
+      console.log(`[Billing] 3. Order created in DB: ID=${orderId}`);
 
-      // B. Process Payment
       const paymentAmount = grandTotal;
       const paymentDetails = paymentMethod === 'MIXED' 
         ? { cashAmount, cardAmount, upiAmount, reference: paymentRef }
         : { reference: paymentRef };
 
+      console.log('[Billing] 4. Submitting payment transaction...');
       const paymentResponse = await api.post(`/orders/${orderId}/payment`, {
         amount: paymentAmount,
         method: paymentMethod,
         details: paymentDetails,
       });
 
-      const completedOrder = paymentResponse.data;
+      completedOrder = paymentResponse.data;
+      console.log(`[Billing] 5. Payment completed for Order #${completedOrder?.orderNumber}`);
 
-      // C. Display receipt data for print
-      setReceiptData({
-        orderNumber: completedOrder.orderNumber,
-        type: completedOrder.type,
-        subtotal: completedOrder.subtotal,
-        taxTotal: completedOrder.taxTotal,
-        discountTotal: completedOrder.discountTotal,
-        grandTotal: completedOrder.grandTotal,
-        customerName: completedOrder.customerName,
-        customerPhone: completedOrder.customerPhone,
-        tableName: completedOrder.table?.number || null,
-        createdAt: completedOrder.createdAt,
-        items: completedOrder.items,
-        cashier: completedOrder.cashier?.name || user?.name || 'Unknown',
-        paymentMethod: paymentMethod,
+      // Normalize raw API response with fallback to cart items & metadata
+      const normalizedOrder = normalizeOrder(completedOrder, cart.items, {
+        user,
+        paymentMethod,
+        subtotal,
+        taxTotal,
+        discountTotal,
+        grandTotal,
       });
 
+      console.log(`[Receipt] Order #${normalizedOrder.orderNumber} | Items: ${normalizedOrder.items.length} | GrandTotal: ₹${normalizedOrder.grandTotal} | Payment: ${normalizedOrder.paymentMethod}`);
+
+      // Set receipt data for print DOM view
+      setReceiptData(normalizedOrder);
+
+      // Clear cart & reset UI immediately
       cart.clearCart();
-      setIsProcessing(false);
-      // Reset payment values
       setCashAmount(0);
       setCardAmount(0);
       setUpiAmount(0);
       setPaymentRef('');
+      setSearch('');
+      console.log('[Billing] 6. POS Cart cleared and UI state reset.');
+
+      // Trigger non-blocking background print
+      dispatchBackgroundPrint(normalizedOrder, paymentMethod);
 
     } catch (err: any) {
-      const errMsg = err.response?.data?.message || 'Checkout failed.';
+      console.error('[Billing] ERROR during checkout submission:', err);
+      const errMsg = err.response?.data?.message || err.message || 'Checkout failed.';
       setCheckoutError(errMsg);
       alert(errMsg);
+    } finally {
+      console.log('[Billing] 7. Resetting isProcessing state to false.');
       setIsProcessing(false);
     }
   }
@@ -595,7 +601,16 @@ export default function PosPage() {
             />
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
+            {lastCompletedOrder && (
+              <button
+                onClick={() => dispatchBackgroundPrint(lastCompletedOrder.order, lastCompletedOrder.paymentMethod)}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xxs rounded-lg transition-colors border border-slate-200"
+              >
+                <Printer className="h-3.5 w-3.5 text-slate-500" />
+                Reprint #{lastCompletedOrder.order.orderNumber}
+              </button>
+            )}
             <div className="px-3 py-1 bg-emerald-50 text-emerald-800 text-xxs font-semibold rounded-full border border-emerald-200">
               Shift Active
             </div>
@@ -681,14 +696,50 @@ export default function PosPage() {
       {/* RIGHT SECTION: Cart Sidebar */}
       <div className="w-96 bg-white border-l border-slate-250 flex flex-col h-full shadow-lg">
         {/* Cart Header */}
-        <div className="p-4 border-b border-slate-200 flex items-center justify-between shrink-0 bg-white">
-          <span className="font-semibold text-slate-805 flex items-center gap-2">
-            <ShoppingCart className="h-4.5 w-4.5 text-primary" />
-            <span className="text-sm font-semibold tracking-tight text-slate-800">Active Billing Order</span>
-          </span>
-          <span className="text-xxs font-semibold bg-slate-100 px-2.5 py-0.5 rounded-full text-slate-500 border border-slate-200/50">
-            {cart.items.length} items
-          </span>
+        <div className="p-4 border-b border-slate-200 flex flex-col gap-2 shrink-0 bg-white">
+          <div className="flex items-center justify-between">
+            <span className="font-semibold text-slate-805 flex items-center gap-2">
+              <ShoppingCart className="h-4.5 w-4.5 text-primary" />
+              <span className="text-sm font-semibold tracking-tight text-slate-800">Active Billing Order</span>
+            </span>
+            <span className="text-xxs font-semibold bg-slate-100 px-2.5 py-0.5 rounded-full text-slate-500 border border-slate-200/50">
+              {cart.items.length} items
+            </span>
+          </div>
+
+          {/* Non-blocking background print alert banner */}
+          {printErrorAlert && (
+            <div className="bg-amber-50 border border-amber-200 text-amber-900 p-2.5 rounded-xl flex flex-col gap-2 text-xxs mt-1 animate-fade-in shadow-xs">
+              <div className="flex items-start justify-between gap-1">
+                <div className="flex items-center gap-1.5 font-medium text-amber-800">
+                  <AlertTriangle className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+                  <span>{printErrorAlert.message}</span>
+                </div>
+                <button 
+                  onClick={() => setPrintErrorAlert(null)}
+                  className="text-amber-400 hover:text-amber-700 shrink-0 p-0.5"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+              <div className="flex items-center justify-end gap-2 pt-1 border-t border-amber-200/60">
+                <button 
+                  onClick={() => dispatchBackgroundPrint(printErrorAlert.orderData, printErrorAlert.paymentMethod)}
+                  className="px-2 py-0.5 bg-amber-600 text-white rounded font-bold text-xxxs hover:bg-amber-700 transition-colors flex items-center gap-1"
+                >
+                  <RefreshCw className="h-2.5 w-2.5" />
+                  Retry Agent
+                </button>
+                <button 
+                  onClick={() => window.print()}
+                  className="px-2 py-0.5 bg-white border border-amber-300 text-slate-700 rounded font-bold text-xxxs hover:bg-amber-100 transition-colors flex items-center gap-1"
+                >
+                  <Printer className="h-2.5 w-2.5 text-slate-500" />
+                  Browser Print
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Order Type and Customer Settings */}
@@ -1109,157 +1160,160 @@ export default function PosPage() {
         </div>
       )}
 
-      {/* 5. PRINT-ONLY THERMAL RECEIPT CONTAINER */}
-      {receiptData && (() => {
-        // Group items by category name
-        const itemsByCategory: Record<string, any[]> = {};
-        receiptData.items.forEach((item: any) => {
-          const catName = item.dish?.category?.name || 'Other';
-          if (!itemsByCategory[catName]) {
-            itemsByCategory[catName] = [];
-          }
-          itemsByCategory[catName].push(item);
-        });
-        const categories = Object.keys(itemsByCategory);
+      {/* 5. PRINT-ONLY THERMAL RECEIPT CONTAINER PROTECTED BY ERROR BOUNDARY */}
+      <ReceiptErrorBoundary>
+        {receiptData && (() => {
+          // Group items by category name
+          const itemsByCategory: Record<string, any[]> = {};
+          (receiptData.items || []).forEach((item: any) => {
+            const catName = item.categoryName || item.dish?.category?.name || 'Other';
+            if (!itemsByCategory[catName]) {
+              itemsByCategory[catName] = [];
+            }
+            itemsByCategory[catName].push(item);
+          });
+          const categories = Object.keys(itemsByCategory);
 
-        return (
-          <div id="print-receipt-section" className="hidden print:block text-slate-900 bg-white">
-            {/* A. Customer Bill */}
-            <div style={{ pageBreakAfter: 'always', breakAfter: 'page' }} className="pb-4">
-              <div className="text-center mb-4">
-                <h2 className="text-base font-black tracking-wide">KYRA POS</h2>
-                <p className="text-xxs text-slate-600">Premium Dining Experience</p>
-                <p className="text-xxs text-slate-500 mt-1 font-bold">CUSTOMER COPY</p>
-                <p className="text-xxs text-slate-500">Order Type: {receiptData.type}</p>
-              </div>
-
-              <div className="border-b border-dashed border-slate-400 pb-2 mb-2 space-y-0.5 text-xxs text-slate-700">
-                <div className="flex justify-between">
-                  <span>Bill No: #{receiptData.orderNumber}</span>
-                  <span>Date: {new Date(receiptData.createdAt).toLocaleDateString()}</span>
+          return (
+            <div id="print-receipt-section" className="hidden print:block text-slate-900 bg-white">
+              {/* A. Customer Bill */}
+              <div style={{ pageBreakAfter: 'always', breakAfter: 'page' }} className="pb-4">
+                <div className="text-center mb-4">
+                  <h2 className="text-base font-black tracking-wide">KYRA POS</h2>
+                  <p className="text-xxs text-slate-600">Premium Dining Experience</p>
+                  <p className="text-xxs text-slate-500 mt-1 font-bold">CUSTOMER COPY</p>
+                  <p className="text-xxs text-slate-500">Order Type: {receiptData.type}</p>
                 </div>
-                {receiptData.tableName && (
-                  <div>Table: {receiptData.tableName}</div>
-                )}
-                <div>Cashier: {receiptData.cashier}</div>
-                {receiptData.customerName && (
-                  <div>Customer: {receiptData.customerName} ({receiptData.customerPhone || 'N/A'})</div>
-                )}
-              </div>
 
-              {/* Items */}
-              <table className="w-full text-xxs mb-2 text-left border-collapse">
-                <thead>
-                  <tr className="border-b border-dashed border-slate-400 font-bold">
-                    <th className="pb-1">Item</th>
-                    <th className="pb-1 text-center">Qty</th>
-                    <th className="pb-1 text-right">Price</th>
-                    <th className="pb-1 text-right">Total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {receiptData.items.map((item: any) => (
-                    <tr key={item.id}>
-                      <td className="py-1">
-                        <div>{item.dish?.name || 'Dish Item'}</div>
-                        {item.notes && <div className="text-xxxs text-slate-500 italic">*{item.notes}</div>}
-                      </td>
-                      <td className="py-1 text-center">{item.quantity}</td>
-                      <td className="py-1 text-right">₹{Number(item.price).toFixed(2)}</td>
-                      <td className="py-1 text-right">₹{(Number(item.price) * item.quantity).toFixed(2)}</td>
+                <div className="border-b border-dashed border-slate-400 pb-2 mb-2 space-y-0.5 text-xxs text-slate-700">
+                  <div className="flex justify-between">
+                    <span>Bill No: #{receiptData.orderNumber}</span>
+                    <span>Date: {new Date(receiptData.createdAt).toLocaleDateString()}</span>
+                  </div>
+                  {receiptData.tableName && (
+                    <div>Table: {receiptData.tableName}</div>
+                  )}
+                  <div>Cashier: {receiptData.cashierName || receiptData.cashier}</div>
+                  {receiptData.customerName && (
+                    <div>Customer: {receiptData.customerName} ({receiptData.customerPhone || 'N/A'})</div>
+                  )}
+                </div>
+
+                {/* Items */}
+                <table className="w-full text-xxs mb-2 text-left border-collapse">
+                  <thead>
+                    <tr className="border-b border-dashed border-slate-400 font-bold">
+                      <th className="pb-1">Item</th>
+                      <th className="pb-1 text-center">Qty</th>
+                      <th className="pb-1 text-right">Price</th>
+                      <th className="pb-1 text-right">Total</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-
-              {/* Summary */}
-              <div className="border-t border-dashed border-slate-400 pt-2 space-y-1 text-xxs text-slate-700">
-                <div className="flex justify-between">
-                  <span>Subtotal</span>
-                  <span>₹{Number(receiptData.subtotal).toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Taxes</span>
-                  <span>₹{Number(receiptData.taxTotal).toFixed(2)}</span>
-                </div>
-                {Number(receiptData.discountTotal) > 0 && (
-                  <div className="flex justify-between text-rose-700">
-                    <span>Discount</span>
-                    <span>-₹{Number(receiptData.discountTotal).toFixed(2)}</span>
-                  </div>
-                )}
-                <div className="flex justify-between font-black text-sm border-t border-dashed border-slate-400 pt-1 text-slate-900">
-                  <span>Grand Total</span>
-                  <span>₹{Number(receiptData.grandTotal).toFixed(2)}</span>
-                </div>
-              </div>
-
-              <div className="mt-4 border-t border-dashed border-slate-400 pt-2 text-center text-xxs text-slate-650">
-                <p>Paid via: {receiptData.paymentMethod}</p>
-                <p className="mt-1 font-semibold">Thank you! Visit again.</p>
-              </div>
-            </div>
-
-            {/* B. Kitchen Bills (KOT) Grouped by Category */}
-            {categories.map((catName, index) => {
-              const catItems = itemsByCategory[catName];
-              const isLast = index === categories.length - 1;
-              return (
-                <div
-                  key={catName}
-                  style={!isLast ? { pageBreakAfter: 'always', breakAfter: 'page' } : {}}
-                  className="pt-4 pb-4 font-mono"
-                >
-                  <div className="text-center mb-4">
-                    <h2 className="text-sm font-black tracking-widest uppercase">KITCHEN ORDER TICKET (KOT)</h2>
-                    <p className="text-xs font-black bg-slate-900 text-white py-1 my-1 uppercase rounded">
-                      CATEGORY: {catName}
-                    </p>
-                    <p className="text-xxs text-slate-600 mt-1 font-bold">Bill No: #{receiptData.orderNumber}</p>
-                  </div>
-
-                  <div className="border-b border-dashed border-slate-400 pb-2 mb-2 space-y-0.5 text-xxs text-slate-700">
-                    <div className="flex justify-between">
-                      <span>Date: {new Date(receiptData.createdAt).toLocaleDateString()}</span>
-                      <span>Time: {new Date(receiptData.createdAt).toLocaleTimeString()}</span>
-                    </div>
-                    {receiptData.tableName && (
-                      <div className="font-bold text-xs mt-1">Table: {receiptData.tableName}</div>
-                    )}
-                    <div>Order Type: {receiptData.type}</div>
-                    <div>Cashier: {receiptData.cashier}</div>
-                  </div>
-
-                  {/* KOT Items List */}
-                  <table className="w-full text-xxs mb-2 text-left border-collapse">
-                    <thead>
-                      <tr className="border-b border-dashed border-slate-400 font-bold">
-                        <th className="pb-1">Item Name</th>
-                        <th className="pb-1 text-right">Quantity</th>
+                  </thead>
+                  <tbody>
+                    {(receiptData.items || []).map((item: any) => (
+                      <tr key={item.id} className="border-b border-slate-100">
+                        <td className="py-1">
+                          <span className="font-semibold">{item.name || item.dish?.name}</span>
+                          {item.notes && <div className="text-xxxs text-slate-400 italic">*{item.notes}</div>}
+                        </td>
+                        <td className="py-1 text-center font-bold">{item.quantity}</td>
+                        <td className="py-1 text-right">₹{Number(item.price).toFixed(2)}</td>
+                        <td className="py-1 text-right font-bold">₹{Number(item.amount || (item.price * item.quantity)).toFixed(2)}</td>
                       </tr>
-                    </thead>
-                    <tbody>
-                      {catItems.map((item: any) => (
-                        <tr key={item.id} className="border-b border-slate-100">
-                          <td className="py-2 text-xs font-bold">
-                            <div>{item.dish?.name || 'Dish Item'}</div>
-                            {item.notes && <div className="text-xxxs text-slate-500 italic">*{item.notes}</div>}
-                          </td>
-                          <td className="py-2 text-right text-xs font-black">{item.quantity}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                    ))}
+                  </tbody>
+                </table>
 
-                  <div className="mt-4 border-t border-dashed border-slate-400 pt-2 text-center text-xxxs text-slate-500 font-bold uppercase">
-                    * Kitchen Copy Only - Do Not Pay *
+                {/* Summary Totals */}
+                <div className="border-t border-dashed border-slate-400 pt-2 space-y-1 text-xxs text-slate-800">
+                  <div className="flex justify-between">
+                    <span>Subtotal:</span>
+                    <span>₹{Number(receiptData.subtotal).toFixed(2)}</span>
                   </div>
+                  {Number(receiptData.discountTotal) > 0 && (
+                    <div className="flex justify-between font-medium">
+                      <span>Discount:</span>
+                      <span>-₹{Number(receiptData.discountTotal).toFixed(2)}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between">
+                    <span>Tax (GST):</span>
+                    <span>₹{Number(receiptData.taxTotal).toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-xs font-black pt-1 border-t border-slate-300">
+                    <span>Grand Total:</span>
+                    <span>₹{Number(receiptData.grandTotal).toFixed(2)}</span>
+                  </div>
+                  <p className="text-xxxs text-slate-500 pt-1 font-bold">Paid via: {receiptData.paymentMethod}</p>
                 </div>
-              );
-            })}
-          </div>
-        );
-      })()}
+
+                <div className="mt-4 border-t border-dashed border-slate-400 pt-2 text-center text-xxxs text-slate-500">
+                  <p className="font-bold">Thank you for dining with us!</p>
+                  <p>Please visit again</p>
+                </div>
+              </div>
+
+              {/* B. Kitchen KOT Tickets grouped by Category */}
+              {categories.map((catName) => {
+                const catItems = itemsByCategory[catName];
+                return (
+                  <div
+                    key={catName}
+                    style={{ pageBreakBefore: 'always', breakBefore: 'page' }}
+                    className="pt-2 pb-4"
+                  >
+                    <div className="text-center mb-3">
+                      <h2 className="text-sm font-black tracking-wide border-b-2 border-slate-900 pb-1 inline-block">
+                        KITCHEN ORDER TICKET (KOT)
+                      </h2>
+                      <div className="text-xs font-extrabold mt-1 text-slate-800">
+                        Category: {catName}
+                      </div>
+                    </div>
+
+                    <div className="border-b border-dashed border-slate-400 pb-2 mb-2 space-y-0.5 text-xxs font-semibold">
+                      <div className="flex justify-between text-xs font-black">
+                        <span>KOT Bill #: {receiptData.orderNumber}</span>
+                        <span>Time: {new Date(receiptData.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                      </div>
+                      {receiptData.tableName && (
+                        <div className="text-xs font-black text-slate-900">Table: {receiptData.tableName}</div>
+                      )}
+                      <div>Order Type: {receiptData.type}</div>
+                      <div>Cashier: {receiptData.cashierName || receiptData.cashier}</div>
+                    </div>
+
+                    {/* KOT Items List */}
+                    <table className="w-full text-xxs mb-2 text-left border-collapse">
+                      <thead>
+                        <tr className="border-b border-dashed border-slate-400 font-bold">
+                          <th className="pb-1">Item Name</th>
+                          <th className="pb-1 text-right">Quantity</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {catItems.map((item: any) => (
+                          <tr key={item.id} className="border-b border-slate-100">
+                            <td className="py-2 text-xs font-bold">
+                              <div>{item.name || item.dish?.name || 'Dish Item'}</div>
+                              {item.notes && <div className="text-xxxs text-slate-500 italic">*{item.notes}</div>}
+                            </td>
+                            <td className="py-2 text-right text-xs font-black">{item.quantity}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+
+                    <div className="mt-4 border-t border-dashed border-slate-400 pt-2 text-center text-xxxs text-slate-500 font-bold uppercase">
+                      * Kitchen Copy Only - Do Not Pay *
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })()}
+      </ReceiptErrorBoundary>
     </div>
   );
 }
