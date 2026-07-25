@@ -93,6 +93,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { name: 'Reports', href: '/reports', icon: ClipboardList, show: true },
     { name: 'Party Hall', href: '/party-hall', icon: Sparkles, show: isAdminOrManager },
     { name: 'Games', href: '/games', icon: Gamepad2, show: true },
+    { name: 'Print Center', href: '/settings/printer', icon: Printer, show: isAdminOrManager },
     { name: 'User Management', href: '/users', icon: UserCheck, show: isAdmin },
   ];
 
