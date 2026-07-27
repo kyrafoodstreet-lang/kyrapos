@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
+import { PrintAgentClient } from '@/lib/printAgentClient';
 import {
   Search,
   Calendar,
@@ -14,7 +15,16 @@ import {
   Loader,
   AlertCircle,
   X,
-  Printer
+  Printer,
+  Eye,
+  CheckCircle2,
+  Clock,
+  Filter,
+  ArrowUpRight,
+  Receipt,
+  RefreshCw,
+  ShoppingBag,
+  CreditCard
 } from 'lucide-react';
 
 interface Bill {
@@ -30,6 +40,7 @@ interface Bill {
   cancellationReason: string | null;
   cancelledAt: string | null;
   cancelledByName: string | null;
+  type?: string;
 }
 
 interface HistoryResponse {
@@ -45,35 +56,65 @@ interface HistoryResponse {
 export default function SalesHistoryPage() {
   const queryClient = useQueryClient();
 
-  // Date Filters
+  // Helper date functions
   const getTodayString = () => new Date().toISOString().split('T')[0];
   const getYesterdayString = () => {
     const d = new Date();
     d.setDate(d.getDate() - 1);
     return d.toISOString().split('T')[0];
   };
+  const getWeekStartString = () => {
+    const d = new Date();
+    d.setDate(d.getDate() - 7);
+    return d.toISOString().split('T')[0];
+  };
+  const getMonthStartString = () => {
+    const d = new Date();
+    d.setDate(1);
+    return d.toISOString().split('T')[0];
+  };
 
-  const [dateFilter, setDateFilter] = useState<'today' | 'yesterday' | 'custom'>('today');
+  // Date Filters
+  const [dateFilter, setDateFilter] = useState<'today' | 'yesterday' | 'week' | 'month' | 'custom'>('today');
   const [startDate, setStartDate] = useState(getTodayString());
   const [endDate, setEndDate] = useState(getTodayString());
 
-  // Search filter
+  // Search & Secondary Filters
   const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('ALL');
+  const [paymentFilter, setPaymentFilter] = useState<string>('ALL');
 
-  // Cancellation Modal State
+  // Modal States
+  const [viewingOrderDetails, setViewingOrderDetails] = useState<any | null>(null);
+  const [loadingOrderDetail, setLoadingOrderDetail] = useState(false);
+  const [reprintingOrderId, setReprintingOrderId] = useState<string | null>(null);
   const [cancellingBill, setCancellingBill] = useState<Bill | null>(null);
   const [cancelReason, setCancelReason] = useState('');
   const [cancelError, setCancelError] = useState<string | null>(null);
+  const [browserPrintOrder, setBrowserPrintOrder] = useState<any | null>(null);
 
   // Fetch Sales History Query
-  const { data, isLoading, error } = useQuery<HistoryResponse>({
+  const { data, isLoading, error, refetch, isRefetching } = useQuery<HistoryResponse>({
     queryKey: ['salesHistory', dateFilter, startDate, endDate],
     queryFn: async () => {
+      let sDate = startDate;
+      let eDate = endDate;
+      if (dateFilter === 'today') {
+        sDate = getTodayString();
+        eDate = getTodayString();
+      } else if (dateFilter === 'yesterday') {
+        sDate = getYesterdayString();
+        eDate = getYesterdayString();
+      } else if (dateFilter === 'week') {
+        sDate = getWeekStartString();
+        eDate = getTodayString();
+      } else if (dateFilter === 'month') {
+        sDate = getMonthStartString();
+        eDate = getTodayString();
+      }
+
       const res = await api.get('/orders/history', {
-        params: {
-          startDate: dateFilter === 'today' ? getTodayString() : dateFilter === 'yesterday' ? getYesterdayString() : startDate,
-          endDate: dateFilter === 'today' ? getTodayString() : dateFilter === 'yesterday' ? getYesterdayString() : endDate,
-        },
+        params: { startDate: sDate, endDate: eDate },
       });
       return res.data;
     },
@@ -91,14 +132,14 @@ export default function SalesHistoryPage() {
       setCancellingBill(null);
       setCancelReason('');
       setCancelError(null);
-      alert('Bill cancelled successfully!');
+      alert('Order cancelled successfully!');
     },
     onError: (err: any) => {
-      setCancelError(err.response?.data?.message || 'Failed to cancel bill.');
+      setCancelError(err.response?.data?.message || 'Failed to cancel order.');
     },
   });
 
-  const handleQuickFilter = (type: 'today' | 'yesterday' | 'custom') => {
+  const handleQuickFilter = (type: 'today' | 'yesterday' | 'week' | 'month' | 'custom') => {
     setDateFilter(type);
     if (type === 'today') {
       setStartDate(getTodayString());
@@ -106,6 +147,12 @@ export default function SalesHistoryPage() {
     } else if (type === 'yesterday') {
       setStartDate(getYesterdayString());
       setEndDate(getYesterdayString());
+    } else if (type === 'week') {
+      setStartDate(getWeekStartString());
+      setEndDate(getTodayString());
+    } else if (type === 'month') {
+      setStartDate(getMonthStartString());
+      setEndDate(getTodayString());
     }
   };
 
@@ -120,6 +167,76 @@ export default function SalesHistoryPage() {
     }
   };
 
+  // View itemized order details
+  const handleViewOrderDetails = async (orderId: string) => {
+    setLoadingOrderDetail(true);
+    try {
+      const res = await api.get(`/orders/${orderId}`);
+      setViewingOrderDetails(res.data);
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to load order details');
+    } finally {
+      setLoadingOrderDetail(false);
+    }
+  };
+
+  // Reprint Receipt Function
+  const handleReprintBill = async (billId: string) => {
+    setReprintingOrderId(billId);
+    try {
+      const res = await api.get(`/orders/${billId}`);
+      const order = res.data;
+
+      const receiptItems = (order.items || []).map((i: any) => ({
+        name: i.dish?.name || i.name || 'Item',
+        quantity: i.quantity,
+        price: Number(i.price),
+        totalPrice: Number(i.price) * i.quantity,
+        notes: i.notes || undefined,
+      }));
+
+      const receiptPayload = {
+        restaurantName: 'Kyra Cafe',
+        restaurantAddress: '123 Main Street, Food District',
+        restaurantPhone: '9876543210',
+        gstNumber: '29AAAAA1111A1Z1',
+        billNumber: order.orderNumber,
+        date: new Date(order.createdAt).toLocaleDateString(),
+        time: new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        tableNumber: order.table?.number || undefined,
+        captainName: order.cashier?.name || 'Cashier',
+        cashierName: order.cashier?.name || 'Cashier',
+        orderType: order.type || 'DINE_IN',
+        items: receiptItems,
+        subtotal: Number(order.subtotal || order.grandTotal),
+        discount: Number(order.discountTotal || 0),
+        taxSummary: [
+          { name: 'GST', rate: 5, amount: Number(order.taxTotal || 0) }
+        ],
+        grandTotal: Number(order.grandTotal),
+        paymentMethod: order.payments?.[0]?.method || order.paymentMethod || 'CASH',
+        customerName: order.customerName && order.customerName !== 'Walk-in Customer' ? order.customerName : undefined,
+        customerPhone: order.customerPhone || undefined,
+        isReprint: true,
+      };
+
+      const printRes = await PrintAgentClient.printCustomerReceipt(receiptPayload);
+      if (printRes.success) {
+        alert(`Receipt for Order #${order.orderNumber} sent to printer successfully!`);
+      } else {
+        console.warn('Local print agent unreachable, opening browser print dialog.', printRes.error);
+        setBrowserPrintOrder(order);
+        setTimeout(() => {
+          window.print();
+        }, 300);
+      }
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to fetch order details for reprinting.');
+    } finally {
+      setReprintingOrderId(null);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex h-64 items-center justify-center">
@@ -131,204 +248,343 @@ export default function SalesHistoryPage() {
   if (error || !data) {
     return (
       <div className="p-4 bg-rose-50 text-rose-700 rounded-xl border border-rose-100 flex items-center gap-3">
-        <AlertCircle className="h-5 w-5" />
+        <AlertCircle className="h-5 w-5 shrink-0" />
         <span>Failed to load sales history from server.</span>
       </div>
     );
   }
 
-  // Filter orders locally by search query (order number or phone)
+  // Filter orders by search, status, and payment method
   const filteredOrders = data.orders.filter((o) => {
-    const matchesSearch = o.orderNumber.toString().includes(searchQuery) ||
-      o.customerPhone.includes(searchQuery) ||
-      o.customerName.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesSearch;
+    const matchesSearch =
+      o.orderNumber.toString().includes(searchQuery) ||
+      (o.customerPhone && o.customerPhone.includes(searchQuery)) ||
+      (o.customerName && o.customerName.toLowerCase().includes(searchQuery.toLowerCase()));
+
+    const matchesStatus = statusFilter === 'ALL' || o.status === statusFilter;
+    const matchesPayment = paymentFilter === 'ALL' || o.paymentMethod === paymentFilter;
+
+    return matchesSearch && matchesStatus && matchesPayment;
   });
 
+  const avgOrderValue = data.summary.totalBills > 0 ? data.summary.totalSales / data.summary.totalBills : 0;
+
   return (
-    <div className="space-y-6 text-slate-700 font-sans">
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-slate-200 pb-4 shrink-0">
+    <div className="space-y-6 text-slate-700 font-sans pb-10">
+      {/* Header Bar */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-200 pb-4">
         <div>
-          <h2 className="text-base font-semibold text-slate-800 tracking-tight">Sales & Billing History</h2>
-          <p className="text-xxs text-slate-450 mt-0.5 font-medium">Review drawer orders, manage unpaid active bills, and track cancellations.</p>
+          <div className="flex items-center gap-2">
+            <h2 className="text-lg font-bold text-slate-850 tracking-tight">Sales & Billing History</h2>
+            <span className="px-2 py-0.5 bg-primary-light text-primary border border-primary/20 text-xxs font-bold rounded-full">
+              {filteredOrders.length} Orders
+            </span>
+          </div>
+          <p className="text-xxs text-slate-400 mt-0.5 font-medium">
+            Track drawer transactions, reprint receipts, inspect bill breakdowns, and process returns.
+          </p>
         </div>
 
-        {/* Date Filter & Quick selectors */}
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center border rounded-lg overflow-hidden bg-slate-50 border-slate-250">
-            {(['today', 'yesterday', 'custom'] as const).map((filter) => (
+        {/* Date Filter & Preset Controls */}
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center border rounded-xl overflow-hidden bg-slate-50 border-slate-250 p-0.5 shadow-xxs">
+            {(['today', 'yesterday', 'week', 'month', 'custom'] as const).map((filter) => (
               <button
                 key={filter}
                 type="button"
                 onClick={() => handleQuickFilter(filter)}
-                className={`px-3 py-1.5 text-xxs font-bold border-r last:border-r-0 border-slate-200 transition-colors capitalize cursor-pointer ${
-                  dateFilter === filter 
-                    ? 'bg-primary text-white border-primary shadow-sm' 
-                    : 'text-slate-600 hover:bg-slate-100'
+                className={`px-3 py-1.5 text-xxs font-bold rounded-lg transition-all capitalize cursor-pointer ${
+                  dateFilter === filter
+                    ? 'bg-primary text-white shadow-xs'
+                    : 'text-slate-600 hover:bg-slate-200/60'
                 }`}
               >
-                {filter}
+                {filter === 'week' ? 'This Week' : filter === 'month' ? 'This Month' : filter}
               </button>
             ))}
           </div>
 
           {dateFilter === 'custom' && (
-            <div className="flex items-center gap-2 animate-fade-in text-xxs font-semibold">
+            <div className="flex items-center gap-2 text-xxs font-semibold bg-white p-1 rounded-xl border border-slate-200 shadow-xxs">
               <input
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="bg-white border rounded-lg px-2 py-1 focus:outline-none font-medium text-slate-850"
+                className="bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 focus:outline-none font-medium text-slate-850"
               />
               <span className="text-slate-400">to</span>
               <input
                 type="date"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
-                className="bg-white border rounded-lg px-2 py-1 focus:outline-none font-medium text-slate-850"
+                className="bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 focus:outline-none font-medium text-slate-850"
               />
             </div>
           )}
+
+          <button
+            onClick={() => refetch()}
+            disabled={isRefetching}
+            className="p-2 bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-250 rounded-xl transition-colors cursor-pointer"
+            title="Refresh Data"
+          >
+            <RefreshCw className={`h-4 w-4 ${isRefetching ? 'animate-spin' : ''}`} />
+          </button>
         </div>
       </div>
 
-      {/* KPI Cards Summary Counters */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white border border-slate-200 p-6 rounded-xl shadow-sm flex items-center justify-between">
-          <div className="space-y-1">
-            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Bills</span>
-            <h3 className="text-xl font-semibold text-slate-900">{data.summary.totalBills}</h3>
+      {/* Summary KPI Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {/* Total Revenue */}
+        <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-sm space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xxs font-bold text-slate-400 uppercase tracking-wider">Total Sales Revenue</span>
+            <div className="h-8 w-8 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center border border-emerald-200">
+              <DollarSign className="h-4 w-4" />
+            </div>
           </div>
-          <div className="h-11 w-11 bg-primary-light rounded-lg flex items-center justify-center border border-primary/10">
-            <FileText className="h-5 w-5 text-primary" />
-          </div>
+          <h3 className="text-xl font-bold text-slate-900">₹{data.summary.totalSales.toFixed(2)}</h3>
+          <p className="text-[10px] text-emerald-600 font-semibold flex items-center gap-1">
+            <TrendingUp className="h-3 w-3" /> Net completed transactions
+          </p>
         </div>
 
-        <div className="bg-white border border-slate-200 p-6 rounded-xl shadow-sm flex items-center justify-between">
-          <div className="space-y-1">
-            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Sales Revenue</span>
-            <h3 className="text-xl font-semibold text-slate-900">₹{data.summary.totalSales.toFixed(2)}</h3>
+        {/* Total Bills */}
+        <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-sm space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xxs font-bold text-slate-400 uppercase tracking-wider">Total Bills</span>
+            <div className="h-8 w-8 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center border border-blue-200">
+              <Receipt className="h-4 w-4" />
+            </div>
           </div>
-          <div className="h-11 w-11 bg-emerald-50 rounded-lg flex items-center justify-center border border-emerald-150">
-            <DollarSign className="h-5 w-5 text-emerald-600" />
-          </div>
+          <h3 className="text-xl font-bold text-slate-900">{data.summary.totalBills}</h3>
+          <p className="text-[10px] text-slate-400 font-medium">Orders placed in timeframe</p>
         </div>
 
-        <div className="bg-white border border-slate-200 p-6 rounded-xl shadow-sm flex items-center justify-between">
-          <div className="space-y-1">
-            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Cancelled Bills</span>
-            <h3 className="text-xl font-semibold text-slate-900">{data.summary.totalCancelledBills}</h3>
+        {/* Average Order Value (AOV) */}
+        <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-sm space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xxs font-bold text-slate-400 uppercase tracking-wider">Avg Order Value</span>
+            <div className="h-8 w-8 bg-purple-50 text-purple-600 rounded-xl flex items-center justify-center border border-purple-200">
+              <ShoppingBag className="h-4 w-4" />
+            </div>
           </div>
-          <div className="h-11 w-11 bg-rose-50 rounded-lg flex items-center justify-center border border-rose-150">
-            <Ban className="h-5 w-5 text-rose-600" />
+          <h3 className="text-xl font-bold text-slate-900">₹{avgOrderValue.toFixed(2)}</h3>
+          <p className="text-[10px] text-slate-400 font-medium">Average revenue per ticket</p>
+        </div>
+
+        {/* Cancelled Bills */}
+        <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-sm space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xxs font-bold text-slate-400 uppercase tracking-wider">Cancelled Bills</span>
+            <div className="h-8 w-8 bg-rose-50 text-rose-600 rounded-xl flex items-center justify-center border border-rose-200">
+              <Ban className="h-4 w-4" />
+            </div>
           </div>
+          <h3 className="text-xl font-bold text-slate-900">{data.summary.totalCancelledBills}</h3>
+          <p className="text-[10px] text-rose-500 font-medium">Returned / Cancelled orders</p>
         </div>
       </div>
 
-      {/* Category breakdown & Bills list panels */}
+      {/* Main Grid: Category Volume & Sales History Table */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
-        {/* Category-wise Sales Count Sidebar */}
-        <aside className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm space-y-3">
-          <span className="block text-xxs font-bold text-slate-400 uppercase tracking-wider px-2 border-b pb-1.5">Category-wise Sales Volume</span>
-          <div className="space-y-2 p-1">
+        {/* Category Sales Volume Panel */}
+        <aside className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-4">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+            <span className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+              <Tag className="h-4 w-4 text-primary" />
+              Category Sales Volume
+            </span>
+          </div>
+
+          <div className="space-y-2">
             {Object.keys(data.summary.categorySalesCount).length === 0 ? (
-              <p className="text-xxs text-slate-450 text-center py-4">No categories sold in range.</p>
+              <p className="text-xxs text-slate-400 text-center py-6">No category sales recorded in range.</p>
             ) : (
               Object.entries(data.summary.categorySalesCount).map(([name, qty]) => (
-                <div key={name} className="flex justify-between items-center text-xs font-semibold">
-                  <span className="text-slate-600 flex items-center gap-1.5">
-                    <Tag className="h-3.5 w-3.5 text-primary/70" />
-                    <span>{name}</span>
+                <div key={name} className="flex justify-between items-center text-xs font-semibold p-2 bg-slate-50 hover:bg-slate-100/70 rounded-xl border border-slate-150 transition-colors">
+                  <span className="text-slate-700 truncate max-w-[140px]">{name}</span>
+                  <span className="bg-white text-slate-900 px-2 py-0.5 rounded-lg text-xxs font-bold border border-slate-200 shadow-xxs">
+                    {qty} sold
                   </span>
-                  <span className="bg-slate-100 text-slate-805 px-2 py-0.5 rounded text-xxs border border-slate-200">{qty} sold</span>
                 </div>
               ))
             )}
           </div>
         </aside>
 
-        {/* Sales Bills History Table */}
-        <main className="lg:col-span-3 bg-white border border-slate-200 rounded-xl shadow-sm flex flex-col p-6 space-y-4">
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
-            <div className="relative flex-1 max-w-sm">
-              <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+        {/* Sales Bills History Panel */}
+        <main className="lg:col-span-3 bg-white border border-slate-200 rounded-2xl shadow-sm flex flex-col p-6 space-y-5">
+          {/* Search and Filters Bar */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+            {/* Search Input */}
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-3.5 top-2.5 h-4 w-4 text-slate-400" />
               <input
                 type="text"
-                placeholder="Search bill no, phone, or name..."
+                placeholder="Search by Bill #, Customer name, or phone..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-9 pr-4 py-1.5 text-xs focus:outline-none focus:bg-white text-slate-805"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 py-2 text-xs font-medium focus:outline-none focus:bg-white focus:border-primary text-slate-850 transition-all"
               />
+            </div>
+
+            {/* Filter Dropdowns */}
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs font-semibold">
+                <Filter className="h-3.5 w-3.5 text-slate-400" />
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="bg-transparent focus:outline-none text-slate-700 text-xs cursor-pointer font-bold"
+                >
+                  <option value="ALL">All Statuses</option>
+                  <option value="COMPLETED">Completed</option>
+                  <option value="CANCELLED">Cancelled</option>
+                  <option value="PENDING">Pending</option>
+                  <option value="READY">Ready</option>
+                  <option value="SERVED">Served</option>
+                </select>
+              </div>
+
+              <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs font-semibold">
+                <CreditCard className="h-3.5 w-3.5 text-slate-400" />
+                <select
+                  value={paymentFilter}
+                  onChange={(e) => setPaymentFilter(e.target.value)}
+                  className="bg-transparent focus:outline-none text-slate-700 text-xs cursor-pointer font-bold"
+                >
+                  <option value="ALL">All Payments</option>
+                  <option value="CASH">CASH</option>
+                  <option value="UPI">UPI</option>
+                  <option value="CARD">CARD</option>
+                  <option value="MIXED">MIXED</option>
+                </select>
+              </div>
             </div>
           </div>
 
+          {/* Orders Table */}
           <div className="overflow-x-auto">
             {filteredOrders.length === 0 ? (
-              <div className="text-center py-8 text-slate-450 text-xs font-medium">
-                No orders match your filter criteria.
+              <div className="text-center py-12 text-slate-400 text-xs font-medium space-y-2">
+                <AlertCircle className="h-8 w-8 text-slate-300 mx-auto" />
+                <p>No sales orders match your filter criteria.</p>
               </div>
             ) : (
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
-                  <tr className="bg-slate-50 text-slate-500 font-semibold border-b border-slate-150">
-                    <th className="px-4 py-3">Bill Number</th>
+                  <tr className="bg-slate-50/80 text-slate-500 font-bold border-b border-slate-200 text-xxs uppercase tracking-wider">
+                    <th className="px-4 py-3 rounded-l-xl">Order #</th>
                     <th className="px-4 py-3">Customer</th>
                     <th className="px-4 py-3">Date & Time</th>
-                    <th className="px-4 py-3">Payment Method</th>
-                    <th className="px-4 py-3">Amount</th>
+                    <th className="px-4 py-3">Payment</th>
+                    <th className="px-4 py-3">Grand Total</th>
                     <th className="px-4 py-3">Cashier</th>
                     <th className="px-4 py-3">Status</th>
-                    <th className="px-4 py-3 text-right">Actions</th>
+                    <th className="px-4 py-3 text-right rounded-r-xl">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 text-slate-655">
+                <tbody className="divide-y divide-slate-100 text-slate-700 font-medium">
                   {filteredOrders.map((o) => (
-                    <tr key={o.id} className="hover:bg-slate-50/50 font-medium">
-                      <td className="px-4 py-4 font-bold text-slate-900">#{o.orderNumber}</td>
-                      <td className="px-4 py-4">
-                        <div className="font-semibold text-slate-800">{o.customerName}</div>
-                        {o.customerPhone && <div className="text-xxs text-slate-450">{o.customerPhone}</div>}
+                    <tr key={o.id} className="hover:bg-slate-50/60 transition-colors">
+                      <td className="px-4 py-3.5">
+                        <div className="flex items-center gap-2">
+                          <span className="font-extrabold text-slate-900 text-xs">#{o.orderNumber}</span>
+                          {o.type && (
+                            <span className="px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded text-[10px] font-bold border border-slate-200">
+                              {o.type}
+                            </span>
+                          )}
+                        </div>
                       </td>
-                      <td className="px-4 py-4 text-xxs text-slate-500">
-                        {new Date(o.createdAt).toLocaleString()}
+
+                      <td className="px-4 py-3.5">
+                        <div className="font-semibold text-slate-800">{o.customerName || 'Walk-in'}</div>
+                        {o.customerPhone && <div className="text-xxs text-slate-400 font-mono">{o.customerPhone}</div>}
                       </td>
-                      <td className="px-4 py-4 uppercase">
-                        <span className="px-2 py-0.5 rounded text-xxs font-bold border border-slate-200/80 bg-slate-50 text-slate-700">
+
+                      <td className="px-4 py-3.5 text-xxs text-slate-500 font-medium">
+                        {new Date(o.createdAt).toLocaleDateString()}{' '}
+                        <span className="text-slate-400 font-normal">
+                          {new Date(o.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </td>
+
+                      <td className="px-4 py-3.5">
+                        <span className={`px-2 py-0.5 rounded-lg text-xxs font-extrabold uppercase border ${
+                          o.paymentMethod === 'CASH'
+                            ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                            : o.paymentMethod === 'UPI'
+                            ? 'bg-blue-50 text-blue-800 border-blue-200'
+                            : o.paymentMethod === 'CARD'
+                            ? 'bg-purple-50 text-purple-800 border-purple-200'
+                            : 'bg-slate-100 text-slate-700 border-slate-250'
+                        }`}>
                           {o.paymentMethod}
                         </span>
                       </td>
-                      <td className="px-4 py-4 font-bold text-slate-900">₹{o.grandTotal.toFixed(2)}</td>
-                      <td className="px-4 py-4 text-slate-500">{o.cashierName}</td>
-                      <td className="px-4 py-4">
-                        <span className={`px-2 py-0.5 rounded-full text-xxs font-bold border ${
+
+                      <td className="px-4 py-3.5 font-bold text-slate-900 text-sm">
+                        ₹{Number(o.grandTotal).toFixed(2)}
+                      </td>
+
+                      <td className="px-4 py-3.5 text-slate-600 font-semibold">
+                        {o.cashierName}
+                      </td>
+
+                      <td className="px-4 py-3.5">
+                        <span className={`px-2.5 py-0.5 rounded-full text-xxs font-bold border ${
                           o.status === 'COMPLETED'
                             ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
                             : o.status === 'CANCELLED'
                             ? 'bg-rose-50 text-rose-800 border-rose-200'
-                            : 'bg-amber-50 text-amber-805 border-amber-250 animate-pulse'
+                            : 'bg-amber-50 text-amber-800 border-amber-250 animate-pulse'
                         }`}>
                           {o.status}
                         </span>
                       </td>
-                      <td className="px-4 py-4 text-right">
-                        {o.status !== 'CANCELLED' ? (
+
+                      <td className="px-4 py-3.5 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          {/* Details Button */}
                           <button
-                            onClick={() => {
-                              setCancelError(null);
-                              setCancellingBill(o);
-                            }}
-                            className="px-2.5 py-1 text-xxs font-bold text-rose-600 hover:bg-rose-50 border border-rose-100 rounded transition-colors cursor-pointer"
+                            onClick={() => handleViewOrderDetails(o.id)}
+                            className="p-1.5 bg-slate-100 hover:bg-slate-200 border border-slate-250 text-slate-700 rounded-lg transition-colors cursor-pointer"
+                            title="View Itemized Order Details"
                           >
-                            {o.status === 'COMPLETED' ? 'Return / Cancel' : 'Cancel Bill'}
+                            <Eye className="h-3.5 w-3.5" />
                           </button>
-                        ) : (
-                          <span 
-                            className="text-xxs text-slate-400 italic cursor-help"
-                            title={`Reason: ${o.cancellationReason} (by ${o.cancelledByName})`}
+
+                          {/* Reprint Button */}
+                          <button
+                            onClick={() => handleReprintBill(o.id)}
+                            disabled={reprintingOrderId === o.id}
+                            className="flex items-center gap-1 px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-xxs font-bold rounded-lg active-press transition-colors cursor-pointer disabled:opacity-50"
+                            title="Reprint Bill Receipt"
                           >
-                            Cancelled
-                          </span>
-                        )}
+                            {reprintingOrderId === o.id ? (
+                              <Loader className="h-3.5 w-3.5 animate-spin text-emerald-600" />
+                            ) : (
+                              <Printer className="h-3.5 w-3.5 text-emerald-600" />
+                            )}
+                            <span>Reprint</span>
+                          </button>
+
+                          {/* Cancel / Return Button */}
+                          {o.status !== 'CANCELLED' && (
+                            <button
+                              onClick={() => {
+                                setCancelError(null);
+                                setCancellingBill(o);
+                              }}
+                              className="px-2 py-1 text-xxs font-bold text-rose-600 hover:bg-rose-50 border border-rose-200 rounded-lg transition-colors cursor-pointer"
+                              title="Cancel or Process Return"
+                            >
+                              Cancel
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -339,50 +595,181 @@ export default function SalesHistoryPage() {
         </main>
       </div>
 
-      {/* CANCEL BILL MODAL DIALOG */}
+      {/* DIALOG 1: ITEMIZED ORDER DETAILS MODAL */}
+      {viewingOrderDetails && (
+        <>
+          <div
+            className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-40 transition-opacity"
+            onClick={() => setViewingOrderDetails(null)}
+          />
+          <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-lg bg-white rounded-2xl shadow-2xl border border-slate-200 z-50 overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="flex items-center justify-between p-5 border-b border-slate-100 bg-slate-50/50">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-emerald-50 text-emerald-600 rounded-lg">
+                  <Receipt className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-sm text-slate-850">
+                    Order Details #{viewingOrderDetails.orderNumber}
+                  </h3>
+                  <p className="text-xxs text-slate-400 font-medium">
+                    Cashier: {viewingOrderDetails.cashier?.name || viewingOrderDetails.cashierName} •{' '}
+                    {new Date(viewingOrderDetails.createdAt).toLocaleString()}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setViewingOrderDetails(null)}
+                className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-5 overflow-y-auto">
+              {/* Customer & Order Metadata */}
+              <div className="grid grid-cols-2 gap-3 p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xxs font-medium">
+                <div>
+                  <span className="text-slate-400 uppercase font-bold block">Customer</span>
+                  <span className="text-slate-800 font-bold">
+                    {viewingOrderDetails.customerName || 'Walk-in Customer'}
+                  </span>
+                  {viewingOrderDetails.customerPhone && (
+                    <span className="text-slate-400 block">{viewingOrderDetails.customerPhone}</span>
+                  )}
+                </div>
+                <div>
+                  <span className="text-slate-400 uppercase font-bold block">Order Type & Table</span>
+                  <span className="text-slate-800 font-bold">
+                    {viewingOrderDetails.type} {viewingOrderDetails.table ? `(Table ${viewingOrderDetails.table.number})` : ''}
+                  </span>
+                </div>
+              </div>
+
+              {/* Itemized Dish List */}
+              <div className="space-y-2">
+                <h4 className="font-bold text-xs text-slate-800 uppercase tracking-wider text-xxs">Itemized Dish Breakdown</h4>
+                <div className="border border-slate-200 rounded-xl overflow-hidden">
+                  <table className="w-full text-left text-xxs">
+                    <thead>
+                      <tr className="bg-slate-50 text-slate-500 font-bold border-b border-slate-200">
+                        <th className="px-3 py-2">Item Name</th>
+                        <th className="px-3 py-2 text-center">Qty</th>
+                        <th className="px-3 py-2 text-right">Price</th>
+                        <th className="px-3 py-2 text-right">Total</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {(viewingOrderDetails.items || []).map((item: any) => (
+                        <tr key={item.id}>
+                          <td className="px-3 py-2 font-semibold text-slate-800">
+                            {item.dish?.name || item.name}
+                          </td>
+                          <td className="px-3 py-2 text-center font-bold text-slate-700">{item.quantity}</td>
+                          <td className="px-3 py-2 text-right text-slate-600">₹{Number(item.price).toFixed(2)}</td>
+                          <td className="px-3 py-2 text-right font-bold text-slate-900">
+                            ₹{(Number(item.price) * item.quantity).toFixed(2)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Totals Summary */}
+              <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5 text-xs font-semibold">
+                <div className="flex justify-between text-slate-600 text-xxs">
+                  <span>Subtotal:</span>
+                  <span>₹{Number(viewingOrderDetails.subtotal || viewingOrderDetails.grandTotal).toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-slate-600 text-xxs">
+                  <span>Tax (GST):</span>
+                  <span>₹{Number(viewingOrderDetails.taxTotal || 0).toFixed(2)}</span>
+                </div>
+                {Number(viewingOrderDetails.discountTotal || 0) > 0 && (
+                  <div className="flex justify-between text-emerald-600 text-xxs">
+                    <span>Discount:</span>
+                    <span>-₹{Number(viewingOrderDetails.discountTotal).toFixed(2)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between text-slate-900 text-sm font-bold pt-2 border-t border-slate-200">
+                  <span>Grand Total:</span>
+                  <span>₹{Number(viewingOrderDetails.grandTotal).toFixed(2)}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-5 border-t border-slate-100 bg-slate-50/50 flex gap-3">
+              <button
+                type="button"
+                onClick={() => setViewingOrderDetails(null)}
+                className="flex-1 py-2.5 text-xs font-semibold text-slate-650 border border-slate-200 rounded-xl hover:bg-slate-100 transition-all cursor-pointer bg-white"
+              >
+                Close
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const id = viewingOrderDetails.id;
+                  setViewingOrderDetails(null);
+                  handleReprintBill(id);
+                }}
+                className="flex-1 py-2.5 text-xs font-bold text-white bg-primary hover:bg-primary-hover rounded-xl shadow-sm transition-all cursor-pointer flex items-center justify-center gap-2"
+              >
+                <Printer className="h-4 w-4 text-white" />
+                <span>Reprint Receipt</span>
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* DIALOG 2: CANCEL BILL MODAL */}
       {cancellingBill && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4">
-          <div className="bg-white border rounded-xl w-full max-w-md p-6 shadow-xl space-y-4 animate-fade-in">
+          <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-md p-6 shadow-2xl space-y-4 animate-fade-in">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="font-semibold text-slate-800 text-sm flex items-center gap-2">
+              <h3 className="font-bold text-slate-800 text-sm flex items-center gap-2">
                 <Ban className="h-4.5 w-4.5 text-rose-600" />
                 <span>Cancel Order Bill #{cancellingBill.orderNumber}</span>
               </h3>
-              <button 
-                onClick={() => setCancellingBill(null)} 
-                className="text-slate-400 hover:text-slate-650 cursor-pointer"
+              <button
+                onClick={() => setCancellingBill(null)}
+                className="text-slate-400 hover:text-slate-650 cursor-pointer p-1 rounded-lg"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
             {cancelError && (
-              <div className="p-3 bg-rose-50 text-rose-700 rounded-lg text-xs border border-rose-100 font-semibold">
-                {cancelError}
+              <div className="p-3 bg-rose-50 text-rose-700 rounded-xl text-xs border border-rose-100 font-semibold flex items-center gap-2">
+                <AlertCircle className="h-4 w-4 shrink-0" />
+                <span>{cancelError}</span>
               </div>
             )}
 
             <form onSubmit={handleCancelSubmit} className="space-y-4">
-              <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 text-xxs space-y-1 font-semibold">
+              <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 text-xxs space-y-1.5 font-semibold">
                 <div className="flex justify-between">
                   <span className="text-slate-500">Customer:</span>
-                  <span className="text-slate-800">{cancellingBill.customerName || 'Walk-in'}</span>
+                  <span className="text-slate-800">{cancellingBill.customerName || 'Walk-in Customer'}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-500">Grand Total:</span>
-                  <span className="text-slate-900">₹{cancellingBill.grandTotal.toFixed(2)}</span>
+                  <span className="text-slate-900 font-bold">₹{Number(cancellingBill.grandTotal).toFixed(2)}</span>
                 </div>
               </div>
 
               <div>
-                <label className="block text-xxs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
+                <label className="block text-xxs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                   Cancellation Reason (Required)
                 </label>
                 <textarea
                   value={cancelReason}
                   onChange={(e) => setCancelReason(e.target.value)}
-                  className="w-full bg-slate-50 border rounded-lg px-3 py-2 text-xs font-semibold focus:outline-none focus:bg-white h-20 text-slate-855"
-                  placeholder="e.g. Wrong items entered, customer walked away, etc."
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:bg-white h-20 text-slate-855"
+                  placeholder="e.g. Customer changed mind, incorrect billing entries..."
                   required
                 />
               </div>
@@ -391,19 +778,72 @@ export default function SalesHistoryPage() {
                 <button
                   type="button"
                   onClick={() => setCancellingBill(null)}
-                  className="px-4 py-2 border rounded-lg hover:bg-slate-55 text-slate-700 font-bold text-xxs transition-colors cursor-pointer"
+                  className="px-4 py-2.5 border rounded-xl hover:bg-slate-100 text-slate-700 font-bold text-xxs transition-colors cursor-pointer bg-white"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={cancelMutation.isPending}
-                  className="px-4 py-2 bg-rose-600 hover:bg-rose-505 text-white font-bold text-xxs rounded-lg active-press transition-colors shadow-sm cursor-pointer disabled:opacity-50"
+                  className="px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xxs rounded-xl active-press transition-colors shadow-sm cursor-pointer disabled:opacity-50"
                 >
                   {cancelMutation.isPending ? 'Processing...' : 'Confirm Cancellation'}
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* PRINT-ONLY REPRINT RECEIPT */}
+      {browserPrintOrder && (
+        <div id="print-reprint-receipt-section" className="hidden print:block text-slate-900 bg-white p-4 font-mono text-xs max-w-xs mx-auto">
+          <div className="text-center border-b border-dashed border-slate-400 pb-3 mb-3">
+            <h2 className="text-sm font-black tracking-wider uppercase">Kyra Cafe</h2>
+            <p className="text-xxs text-slate-600">*** REPRINT RECEIPT ***</p>
+            <p className="text-xxs text-slate-500 mt-1 font-bold">Bill #{browserPrintOrder.orderNumber}</p>
+          </div>
+
+          <div className="space-y-1 text-xxs border-b border-dashed border-slate-400 pb-3 mb-3">
+            <div className="flex justify-between">
+              <span>Date:</span>
+              <span>{new Date(browserPrintOrder.createdAt).toLocaleDateString()}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Time:</span>
+              <span>{new Date(browserPrintOrder.createdAt).toLocaleTimeString()}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Cashier:</span>
+              <span>{browserPrintOrder.cashier?.name || browserPrintOrder.cashierName}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Customer:</span>
+              <span>{browserPrintOrder.customerName || 'Walk-in'}</span>
+            </div>
+          </div>
+
+          <table className="w-full text-left text-xxs border-b border-dashed border-slate-400 pb-3 mb-3">
+            <thead>
+              <tr className="border-b border-slate-300 font-bold">
+                <th className="pb-1">Item</th>
+                <th className="pb-1 text-center">Qty</th>
+                <th className="pb-1 text-right">Amt</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(browserPrintOrder.items || []).map((i: any, idx: number) => (
+                <tr key={idx}>
+                  <td className="py-1">{i.dish?.name || i.name}</td>
+                  <td className="py-1 text-center font-bold">{i.quantity}</td>
+                  <td className="py-1 text-right font-bold">₹{(Number(i.price) * i.quantity).toFixed(2)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          <div className="space-y-1 text-xxs font-bold text-right">
+            <div>Grand Total: ₹{Number(browserPrintOrder.grandTotal).toFixed(2)}</div>
           </div>
         </div>
       )}

@@ -105,9 +105,20 @@ export default function POSPage() {
   const dispatchBackgroundPrint = async (completedOrder: any, payMethod: string) => {
     if (!completedOrder) return;
     const normalized = normalizeOrder(completedOrder, [], { user, paymentMethod: payMethod });
-    console.log('[Billing] [Background Print] Initiating print job via PrintAgentClient for Order #', normalized.orderNumber);
+    console.log('[Billing] [Background Print] Initiating print job for Order #', normalized.orderNumber);
     setPrintErrorAlert(null);
     setLastCompletedOrder({ order: normalized, paymentMethod: payMethod });
+
+    // Fast Offline Check Guard: Skip network timeout delays if print agent is detected as offline
+    if (printAgentStatus === 'OFFLINE') {
+      console.warn('[Billing] [Background Print] Print agent is offline. Skipping network print request.');
+      setPrintErrorAlert({
+        orderData: normalized,
+        paymentMethod: payMethod,
+        message: `Order #${normalized.orderNumber} completed, but local print agent is offline.`
+      });
+      return;
+    }
 
     try {
       const dateObj = new Date(normalized.createdAt);
@@ -167,8 +178,6 @@ export default function POSPage() {
         qrCodeUrl: `https://kyrapos.com/verify/${normalized.orderNumber}`,
       };
 
-      const resCustomer = await PrintAgentClient.printCustomerReceipt(receiptPayload);
-
       const kotPayload = {
         restaurantName: 'Kyra Cafe',
         orderNumber: normalized.orderNumber,
@@ -182,10 +191,17 @@ export default function POSPage() {
         time: formattedTime,
       };
 
-      const resKot = await PrintAgentClient.printKot(kotPayload);
+      // Parallel execution via Promise.allSettled (CONCURRENT NON-BLOCKING REQUESTS)
+      const [resCustomerResult, resKotResult] = await Promise.allSettled([
+        PrintAgentClient.printCustomerReceipt(receiptPayload),
+        PrintAgentClient.printKot(kotPayload),
+      ]);
+
+      const resCustomer = resCustomerResult.status === 'fulfilled' ? resCustomerResult.value : { success: false, error: 'Customer receipt print failed' };
+      const resKot = resKotResult.status === 'fulfilled' ? resKotResult.value : { success: false, error: 'KOT print failed' };
 
       if (resCustomer.success && resKot.success) {
-        console.log('[Billing] [Background Print] Print jobs queued successfully via PrintAgentClient.');
+        console.log('[Billing] [Background Print] Print jobs queued concurrently via PrintAgentClient.');
       } else {
         console.warn('[Billing] [Background Print] Print agent warning:', resCustomer.error || resKot.error);
         setPrintErrorAlert({

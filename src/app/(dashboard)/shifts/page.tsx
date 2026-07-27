@@ -17,7 +17,16 @@ import {
   HelpCircle,
   DollarSign,
   TrendingUp,
-  CircleDollarSign
+  CircleDollarSign,
+  Eye,
+  FileText,
+  ShieldAlert,
+  Printer,
+  X,
+  CheckCircle2,
+  ArrowUpRight,
+  ArrowDownRight,
+  Sparkles
 } from 'lucide-react';
 
 interface Shift {
@@ -31,6 +40,8 @@ interface Shift {
   expectedCash: string | null;
   actualCash: string | null;
   cashDifference: string | null;
+  actualUpi: string | null;
+  upiDifference: string | null;
   openingTime: string;
   closingTime: string | null;
   status: 'OPEN' | 'CLOSED';
@@ -42,6 +53,7 @@ interface Shift {
   computedCardSales?: number;
   computedUpiSales?: number;
   computedExpenses?: number;
+  categorySales?: { name: string; quantity: number; revenue: number }[];
 }
 
 export default function ShiftsPage() {
@@ -140,14 +152,13 @@ export default function ShiftsPage() {
     }
   });
 
+  // Modal state for post-close shift summary & variance report
+  const [viewShiftReportModalData, setViewShiftReportModalData] = useState<any | null>(null);
+
   // Close Shift Mutation
   const closeShiftMutation = useMutation({
     mutationFn: async () => {
       return (await api.post('/shifts/close', {
-        closingCashSales: Number(closingCashSales),
-        closingCardSales: Number(closingCardSales),
-        closingUpiSales: Number(closingUpiSales),
-        closingExpenses: Number(closingExpenses),
         actualCash: Number(actualCash),
         actualUpi: Number(actualUpi),
         closingNotes,
@@ -155,19 +166,14 @@ export default function ShiftsPage() {
     },
     onSuccess: (data) => {
       setPrintReportData(data);
+      setViewShiftReportModalData(data);
       setActiveShift(null);
-      // Reset close forms
-      setClosingCashSales('');
-      setClosingCardSales('');
-      setClosingUpiSales('');
-      setClosingExpenses('');
       setActualCash('');
       setActualUpi('');
       setClosingNotes('');
       setFormError(null);
       queryClient.invalidateQueries({ queryKey: ['shifts'] });
       queryClient.invalidateQueries({ queryKey: ['dashboardStats'] });
-      alert('Shift closed successfully! The category-wise report print dialogue will open automatically.');
     },
     onError: (err: any) => {
       setFormError(err.response?.data?.message || 'Failed to close shift.');
@@ -195,10 +201,15 @@ export default function ShiftsPage() {
 
   const handleCloseShift = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!closingCashSales || !closingCardSales || !closingUpiSales || !closingExpenses || !actualCash || !actualUpi) {
-      setFormError('Please fill out all cash sales breakdown fields and actual counts.');
+    if (actualCash === '' || isNaN(Number(actualCash)) || Number(actualCash) < 0) {
+      setFormError('Please enter a valid physical cash count.');
       return;
     }
+    if (actualUpi === '' || isNaN(Number(actualUpi)) || Number(actualUpi) < 0) {
+      setFormError('Please enter a valid actual UPI total received.');
+      return;
+    }
+    setFormError(null);
     closeShiftMutation.mutate();
   };
 
@@ -228,7 +239,7 @@ export default function ShiftsPage() {
               </p>
               <form onSubmit={handleOpenShift} className="flex gap-4 items-end">
                 <div className="flex-1 max-w-xs">
-                  <label className="block text-xxs font-semibold text-slate-450 uppercase mb-1">Opening Cash (₹)</label>
+                  <label className="block text-xxs font-semibold text-slate-455 uppercase mb-1">Opening Cash (₹)</label>
                   <input
                     type="number"
                     min="0"
@@ -248,14 +259,23 @@ export default function ShiftsPage() {
               </form>
             </div>
           ) : (
-            /* Close Shift Panel */
+            /* Close Shift Panel - Blind Close Mode */
             <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm space-y-6">
-              <div className="flex items-center gap-3 border-b border-slate-100 pb-3">
-                <StopCircle className="h-5 w-5 text-primary" />
-                <h3 className="text-sm font-semibold text-slate-800 tracking-tight">Close Active Cashier Shift</h3>
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div className="flex items-center gap-3">
+                  <StopCircle className="h-5 w-5 text-primary" />
+                  <div>
+                    <h3 className="text-sm font-semibold text-slate-800 tracking-tight">Close Active Cashier Shift</h3>
+                    <p className="text-xxs text-slate-400 font-medium">Blind close mode: Sales totals & variance calculated upon submission</p>
+                  </div>
+                </div>
+                <span className="px-2.5 py-1 bg-amber-50 text-amber-800 border border-amber-200/80 text-xxs font-bold rounded-lg flex items-center gap-1.5">
+                  <ShieldAlert className="h-3.5 w-3.5 text-amber-600" />
+                  <span>Blind Close Active</span>
+                </span>
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-4 bg-slate-50 border border-slate-200 rounded-xl">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 p-4 bg-slate-50 border border-slate-200 rounded-xl">
                 <div className="text-center">
                   <span className="text-xxs font-semibold text-slate-400 uppercase">Cashier</span>
                   <p className="text-xs font-semibold text-slate-800 mt-1">{user?.name}</p>
@@ -267,101 +287,91 @@ export default function ShiftsPage() {
                   </p>
                 </div>
                 <div className="text-center col-span-2 sm:col-span-1">
-                  <span className="text-xxs font-semibold text-slate-400 uppercase">Opening cash</span>
+                  <span className="text-xxs font-semibold text-slate-400 uppercase">Opening Cash</span>
                   <p className="text-xs font-semibold text-slate-900 mt-1">₹{Number(activeShift.openingCash).toFixed(2)}</p>
                 </div>
               </div>
 
-              <form onSubmit={handleCloseShift} className="space-y-4">
-                <h4 className="text-xxs font-semibold text-slate-400 uppercase tracking-wider">Shift Sales Summary</h4>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div className="p-4 bg-blue-50/70 border border-blue-200/80 rounded-xl text-blue-900 text-xs font-medium space-y-1">
+                <div className="flex items-center gap-2 font-bold text-blue-950">
+                  <HelpCircle className="h-4 w-4 text-blue-600 shrink-0" />
+                  <span>Blind Shift Close Instructions</span>
+                </div>
+                <p className="text-xxs text-blue-800 leading-relaxed">
+                  Count your physical cash in the till and total digital UPI receipts before submitting. System expected sales numbers, totals, and variances will be revealed in the closing report after completion.
+                </p>
+              </div>
+
+              <form onSubmit={handleCloseShift} className="space-y-5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xxs font-semibold text-slate-455 mb-1">Cash Sales (₹)</label>
-                    <input
-                      type="number"
-                      min="0"
-                      value={closingCashSales}
-                      readOnly
-                      className="w-full bg-slate-100 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xxs text-slate-500 cursor-not-allowed focus:outline-none"
-                      placeholder="0.00"
-                    />
+                    <label className="block text-xxs font-bold text-slate-700 uppercase mb-1">
+                      Actual Cash in Till (₹) <span className="text-rose-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <DollarSign className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={actualCash}
+                        onChange={(e) => setActualCash(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-250 rounded-lg pl-9 pr-3 py-2 text-xs text-slate-900 font-bold focus:outline-none focus:bg-white focus:border-primary transition-all"
+                        placeholder="Enter physical cash count"
+                        required
+                      />
+                    </div>
                   </div>
+
                   <div>
-                    <label className="block text-xxs font-semibold text-slate-455 mb-1">Card Sales (₹)</label>
-                    <input
-                      type="number"
-                      min="0"
-                      value={closingCardSales}
-                      readOnly
-                      className="w-full bg-slate-100 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xxs text-slate-500 cursor-not-allowed focus:outline-none"
-                      placeholder="0.00"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xxs font-semibold text-slate-455 mb-1">UPI Sales (₹)</label>
-                    <input
-                      type="number"
-                      min="0"
-                      value={closingUpiSales}
-                      readOnly
-                      className="w-full bg-slate-100 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xxs text-slate-500 cursor-not-allowed focus:outline-none"
-                      placeholder="0.00"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xxs font-semibold text-slate-455 mb-1">Logged Expenses (₹)</label>
-                    <input
-                      type="number"
-                      min="0"
-                      value={closingExpenses}
-                      readOnly
-                      className="w-full bg-slate-100 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xxs text-slate-500 cursor-not-allowed focus:outline-none"
-                      placeholder="0.00"
-                    />
+                    <label className="block text-xxs font-bold text-slate-700 uppercase mb-1">
+                      Actual UPI Total Received (₹) <span className="text-rose-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <CircleDollarSign className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={actualUpi}
+                        onChange={(e) => setActualUpi(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-250 rounded-lg pl-9 pr-3 py-2 text-xs text-slate-900 font-bold focus:outline-none focus:bg-white focus:border-primary transition-all"
+                        placeholder="Enter actual UPI total"
+                        required
+                      />
+                    </div>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
-                  <div className="sm:col-span-1">
-                    <label className="block text-xxs font-semibold text-slate-455 mb-1">Actual Cash in Drawer (₹)</label>
-                    <input
-                      type="number"
-                      min="0"
-                      value={actualCash}
-                      onChange={(e) => setActualCash(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-250 rounded-lg px-3 py-2 text-xs text-slate-900 font-semibold focus:outline-none"
-                      placeholder="Enter cash count"
-                    />
-                  </div>
-                  <div className="sm:col-span-1">
-                    <label className="block text-xxs font-semibold text-slate-455 mb-1">Actual UPI Recieved (₹)</label>
-                    <input
-                      type="number"
-                      min="0"
-                      value={actualUpi}
-                      onChange={(e) => setActualUpi(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-250 rounded-lg px-3 py-2 text-xs text-slate-900 font-semibold focus:outline-none"
-                      placeholder="Enter UPI total"
-                    />
-                  </div>
-                  <div className="sm:col-span-1">
-                    <label className="block text-xxs font-semibold text-slate-455 mb-1">Closing Shift Notes</label>
-                    <input
-                      type="text"
-                      value={closingNotes}
-                      onChange={(e) => setClosingNotes(e.target.value)}
-                      className="w-full bg-slate-55 border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-855 focus:outline-none"
-                      placeholder="Difference reasons..."
-                    />
-                  </div>
+                <div>
+                  <label className="block text-xxs font-bold text-slate-700 uppercase mb-1">
+                    Closing Shift Notes / Remarks
+                  </label>
+                  <input
+                    type="text"
+                    value={closingNotes}
+                    onChange={(e) => setClosingNotes(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 focus:outline-none focus:bg-white focus:border-primary"
+                    placeholder="Optional notes or remarks regarding physical till balance..."
+                  />
                 </div>
 
                 <button
                   type="submit"
                   disabled={closeShiftMutation.isPending}
-                  className="w-full py-2.5 bg-primary hover:bg-primary-hover text-white font-semibold text-xs rounded-lg active-press transition-colors shadow-sm disabled:opacity-50 cursor-pointer"
+                  className="w-full py-3 bg-primary hover:bg-primary-hover text-white font-bold text-xs rounded-xl active-press transition-colors shadow-sm disabled:opacity-50 cursor-pointer flex items-center justify-center gap-2"
                 >
-                  {closeShiftMutation.isPending ? 'Closing shift...' : 'Close Active Shift & Verify Till'}
+                  {closeShiftMutation.isPending ? (
+                    <>
+                      <Loader className="h-4 w-4 animate-spin text-white" />
+                      <span>Calculating & Finalizing Shift Close...</span>
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle className="h-4 w-4 text-white" />
+                      <span>Complete Shift Close & Generate Variance Report</span>
+                    </>
+                  )}
                 </button>
               </form>
             </div>
@@ -419,14 +429,16 @@ export default function ShiftsPage() {
                     <th className="px-4 py-3">Open / Close Date</th>
                     <th className="px-4 py-3">Opening Cash</th>
                     <th className="px-4 py-3">Sales Breakdown</th>
-                    <th className="px-4 py-3">Expected vs Actual</th>
-                    <th className="px-4 py-3">Difference</th>
+                    <th className="px-4 py-3">Cash Variance</th>
+                    <th className="px-4 py-3">UPI Variance</th>
                     <th className="px-4 py-3">Status</th>
+                    <th className="px-4 py-3 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-slate-705">
                   {shifts.map((s) => {
-                    const diff = Number(s.cashDifference || 0);
+                    const cashDiff = Number(s.cashDifference || 0);
+                    const upiDiff = Number(s.upiDifference || 0);
                     return (
                       <tr key={s.id} className="hover:bg-slate-50/50 font-medium">
                         <td className="px-4 py-4 font-semibold text-slate-900">{s.cashier.name}</td>
@@ -438,29 +450,40 @@ export default function ShiftsPage() {
                         <td className="px-4 py-4 text-xxs font-medium space-y-0.5 text-slate-500">
                           {s.status === 'CLOSED' ? (
                             <>
-                              <div>Cash Sales: ₹{Number(s.closingCashSales).toFixed(2)}</div>
-                              <div>Card Sales: ₹{Number(s.closingCardSales).toFixed(2)}</div>
-                              <div>UPI Sales: ₹{Number(s.closingUpiSales).toFixed(2)}</div>
-                              <div>Expenses: ₹{Number(s.closingExpenses).toFixed(2)}</div>
+                              <div>Cash: ₹{Number(s.closingCashSales || 0).toFixed(2)}</div>
+                              <div>UPI: ₹{Number(s.closingUpiSales || 0).toFixed(2)}</div>
+                              <div>Card: ₹{Number(s.closingCardSales || 0).toFixed(2)}</div>
+                              <div>Expenses: -₹{Number(s.closingExpenses || 0).toFixed(2)}</div>
                             </>
                           ) : (
-                            <span className="text-emerald-805 bg-emerald-50 border border-emerald-150 rounded px-1.5 py-0.5 text-xxs font-semibold">Shift Live (Open)</span>
+                            <span className="text-emerald-800 bg-emerald-50 border border-emerald-200 rounded px-1.5 py-0.5 text-xxs font-semibold">Shift Live (Open)</span>
                           )}
                         </td>
-                        <td className="px-4 py-4 text-xxs font-medium text-slate-500">
+                        <td className="px-4 py-4 font-semibold">
                           {s.status === 'CLOSED' ? (
-                            <>
-                              <div>Expected: ₹{Number(s.expectedCash).toFixed(2)}</div>
-                              <div>Actual counted: ₹{Number(s.actualCash).toFixed(2)}</div>
-                            </>
+                            <span className={`px-2 py-0.5 rounded text-xxs font-bold inline-block ${
+                              cashDiff === 0 
+                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' 
+                                : cashDiff > 0 
+                                ? 'bg-blue-50 text-blue-700 border border-blue-200' 
+                                : 'bg-rose-50 text-rose-700 border border-rose-200'
+                            }`}>
+                              {cashDiff > 0 ? '+' : ''}₹{cashDiff.toFixed(2)}
+                            </span>
                           ) : (
                             '-'
                           )}
                         </td>
                         <td className="px-4 py-4 font-semibold">
                           {s.status === 'CLOSED' ? (
-                            <span className={diff === 0 ? 'text-success' : diff > 0 ? 'text-blue-600' : 'text-rose-600'}>
-                              {diff > 0 ? '+' : ''}₹{diff.toFixed(2)}
+                            <span className={`px-2 py-0.5 rounded text-xxs font-bold inline-block ${
+                              upiDiff === 0 
+                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' 
+                                : upiDiff > 0 
+                                ? 'bg-blue-50 text-blue-700 border border-blue-200' 
+                                : 'bg-rose-50 text-rose-700 border border-rose-200'
+                            }`}>
+                              {upiDiff > 0 ? '+' : ''}₹{upiDiff.toFixed(2)}
                             </span>
                           ) : (
                             '-'
@@ -472,10 +495,21 @@ export default function ShiftsPage() {
                               OPEN
                             </span>
                           ) : (
-                            <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200 text-xxs font-semibold flex items-center gap-1">
+                            <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200 text-xxs font-semibold flex items-center gap-1 w-fit">
                               <CheckCircle className="h-3 w-3 text-emerald-600" />
                               <span>CLOSED</span>
                             </span>
+                          )}
+                        </td>
+                        <td className="px-4 py-4 text-right">
+                          {s.status === 'CLOSED' && (
+                            <button
+                              onClick={() => setViewShiftReportModalData(s)}
+                              className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 border border-slate-250 text-slate-700 text-xxs font-semibold rounded-lg transition-colors cursor-pointer flex items-center gap-1 ml-auto"
+                            >
+                              <Eye className="h-3.5 w-3.5 text-slate-500" />
+                              <span>View Report</span>
+                            </button>
                           )}
                         </td>
                       </tr>
@@ -486,6 +520,234 @@ export default function ShiftsPage() {
             )}
           </div>
         </div>
+      )}
+
+      {/* POST-CLOSE / HISTORICAL SHIFT REPORT MODAL */}
+      {viewShiftReportModalData && (
+        <>
+          <div
+            className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-40 transition-opacity"
+            onClick={() => setViewShiftReportModalData(null)}
+          />
+          <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-2xl bg-white rounded-2xl shadow-2xl border border-slate-200 z-50 overflow-hidden flex flex-col max-h-[90vh]">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-5 border-b border-slate-100 bg-slate-50/50">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-emerald-50 text-emerald-600 rounded-lg">
+                  <FileText className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-sm text-slate-850">Shift Closing & Variance Report</h3>
+                  <p className="text-xxs text-slate-400">
+                    Shift #{viewShiftReportModalData.id?.substring(0, 8)} • Cashier: {viewShiftReportModalData.cashier?.name}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setViewShiftReportModalData(null)}
+                className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-6 space-y-6 overflow-y-auto">
+              {/* Timestamps & Status */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xxs font-medium">
+                <div>
+                  <span className="text-slate-400 uppercase font-bold block">Opened At</span>
+                  <span className="text-slate-800 font-semibold">{new Date(viewShiftReportModalData.openingTime).toLocaleString()}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 uppercase font-bold block">Closed At</span>
+                  <span className="text-slate-800 font-semibold">
+                    {viewShiftReportModalData.closingTime ? new Date(viewShiftReportModalData.closingTime).toLocaleString() : 'N/A'}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-slate-400 uppercase font-bold block">Status</span>
+                  <span className="inline-block mt-0.5 px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold">
+                    {viewShiftReportModalData.status}
+                  </span>
+                </div>
+              </div>
+
+              {/* Cash Reconciliation Card */}
+              <div className="border border-slate-200 rounded-xl p-4 space-y-3 bg-white">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                  <span className="font-bold text-xs text-slate-800 flex items-center gap-1.5">
+                    <DollarSign className="h-4 w-4 text-emerald-600" />
+                    Cash Reconciliation
+                  </span>
+                  {(() => {
+                    const cashDiff = Number(viewShiftReportModalData.cashDifference || 0);
+                    if (cashDiff === 0) {
+                      return (
+                        <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 text-xxs font-bold rounded-lg flex items-center gap-1">
+                          <CheckCircle2 className="h-3 w-3 text-emerald-600" /> Cash Exact Match
+                        </span>
+                      );
+                    } else if (cashDiff > 0) {
+                      return (
+                        <span className="px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 text-xxs font-bold rounded-lg flex items-center gap-1">
+                          <ArrowUpRight className="h-3 w-3 text-blue-600" /> Cash Surplus (+₹{cashDiff.toFixed(2)})
+                        </span>
+                      );
+                    } else {
+                      return (
+                        <span className="px-2 py-0.5 bg-rose-50 text-rose-700 border border-rose-200 text-xxs font-bold rounded-lg flex items-center gap-1">
+                          <ArrowDownRight className="h-3 w-3 text-rose-600" /> Cash Shortage (-₹{Math.abs(cashDiff).toFixed(2)})
+                        </span>
+                      );
+                    }
+                  })()}
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xxs">
+                  <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-150">
+                    <span className="text-slate-400 font-medium block">Opening Cash</span>
+                    <span className="font-bold text-slate-850 text-xs">₹{Number(viewShiftReportModalData.openingCash || 0).toFixed(2)}</span>
+                  </div>
+                  <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-150">
+                    <span className="text-slate-400 font-medium block">Net Cash Sales</span>
+                    <span className="font-bold text-slate-850 text-xs">+₹{Number(viewShiftReportModalData.closingCashSales || 0).toFixed(2)}</span>
+                  </div>
+                  <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-150">
+                    <span className="text-slate-400 font-medium block">Logged Expenses</span>
+                    <span className="font-bold text-rose-600 text-xs">-₹{Number(viewShiftReportModalData.closingExpenses || 0).toFixed(2)}</span>
+                  </div>
+                  <div className="bg-emerald-50/50 p-2.5 rounded-lg border border-emerald-200">
+                    <span className="text-emerald-800 font-medium block">Expected Till Total</span>
+                    <span className="font-extrabold text-emerald-950 text-xs">₹{Number(viewShiftReportModalData.expectedCash || 0).toFixed(2)}</span>
+                  </div>
+                </div>
+
+                <div className="flex justify-between items-center pt-2 border-t border-slate-100 text-xs">
+                  <span className="font-semibold text-slate-700">Actual Counted Physical Cash:</span>
+                  <span className="font-bold text-slate-900 bg-slate-100 px-3 py-1 rounded-lg border border-slate-200">
+                    ₹{Number(viewShiftReportModalData.actualCash || 0).toFixed(2)}
+                  </span>
+                </div>
+              </div>
+
+              {/* UPI Reconciliation Card */}
+              <div className="border border-slate-200 rounded-xl p-4 space-y-3 bg-white">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                  <span className="font-bold text-xs text-slate-800 flex items-center gap-1.5">
+                    <CircleDollarSign className="h-4 w-4 text-blue-600" />
+                    Digital UPI Reconciliation
+                  </span>
+                  {(() => {
+                    const upiDiff = Number(viewShiftReportModalData.upiDifference || 0);
+                    if (upiDiff === 0) {
+                      return (
+                        <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 text-xxs font-bold rounded-lg flex items-center gap-1">
+                          <CheckCircle2 className="h-3 w-3 text-emerald-600" /> UPI Exact Match
+                        </span>
+                      );
+                    } else if (upiDiff > 0) {
+                      return (
+                        <span className="px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 text-xxs font-bold rounded-lg flex items-center gap-1">
+                          <ArrowUpRight className="h-3 w-3 text-blue-600" /> UPI Surplus (+₹{upiDiff.toFixed(2)})
+                        </span>
+                      );
+                    } else {
+                      return (
+                        <span className="px-2 py-0.5 bg-rose-50 text-rose-700 border border-rose-200 text-xxs font-bold rounded-lg flex items-center gap-1">
+                          <ArrowDownRight className="h-3 w-3 text-rose-600" /> UPI Shortage (-₹{Math.abs(upiDiff).toFixed(2)})
+                        </span>
+                      );
+                    }
+                  })()}
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 text-xxs">
+                  <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-150">
+                    <span className="text-slate-400 font-medium block">Expected System UPI Sales</span>
+                    <span className="font-bold text-slate-850 text-xs">₹{Number(viewShiftReportModalData.closingUpiSales || 0).toFixed(2)}</span>
+                  </div>
+                  <div className="bg-blue-50/50 p-2.5 rounded-lg border border-blue-200">
+                    <span className="text-blue-800 font-medium block">Actual Entered UPI Received</span>
+                    <span className="font-extrabold text-blue-950 text-xs">₹{Number(viewShiftReportModalData.actualUpi || 0).toFixed(2)}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Total Revenue & Card Sales Summary */}
+              <div className="grid grid-cols-2 gap-3 text-xxs">
+                <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl">
+                  <span className="text-slate-400 font-semibold uppercase block">Card Sales Total</span>
+                  <span className="text-sm font-bold text-slate-800">₹{Number(viewShiftReportModalData.closingCardSales || 0).toFixed(2)}</span>
+                </div>
+                <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl">
+                  <span className="text-slate-400 font-semibold uppercase block">Total Net Revenue</span>
+                  <span className="text-sm font-bold text-slate-900">
+                    ₹{(
+                      Number(viewShiftReportModalData.closingCashSales || 0) +
+                      Number(viewShiftReportModalData.closingUpiSales || 0) +
+                      Number(viewShiftReportModalData.closingCardSales || 0)
+                    ).toFixed(2)}
+                  </span>
+                </div>
+              </div>
+
+              {/* Category Sales Table */}
+              {viewShiftReportModalData.categorySales && viewShiftReportModalData.categorySales.length > 0 && (
+                <div className="space-y-2 border-t border-slate-100 pt-3">
+                  <h4 className="font-bold text-xs text-slate-800">Category-wise Sales Volume</h4>
+                  <table className="w-full text-left text-xxs border-collapse">
+                    <thead>
+                      <tr className="bg-slate-50 text-slate-500 font-bold border-b border-slate-200">
+                        <th className="px-3 py-2">Category</th>
+                        <th className="px-3 py-2 text-center">Items Sold</th>
+                        <th className="px-3 py-2 text-right">Revenue</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {viewShiftReportModalData.categorySales.map((cat: any, idx: number) => (
+                        <tr key={idx}>
+                          <td className="px-3 py-1.5 font-semibold text-slate-800">{cat.name}</td>
+                          <td className="px-3 py-1.5 text-center font-bold text-slate-700">{cat.quantity}</td>
+                          <td className="px-3 py-1.5 text-right font-bold text-slate-900">₹{Number(cat.revenue).toFixed(2)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {/* Notes */}
+              {viewShiftReportModalData.closingNotes && (
+                <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-xxs text-slate-600">
+                  <span className="font-bold uppercase text-slate-400 block mb-1">Closing Notes / Remarks</span>
+                  <p className="italic font-medium">{viewShiftReportModalData.closingNotes}</p>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Actions */}
+            <div className="p-5 border-t border-slate-100 bg-slate-50/50 flex gap-3">
+              <button
+                type="button"
+                onClick={() => setViewShiftReportModalData(null)}
+                className="flex-1 py-2.5 text-xs font-semibold text-slate-650 border border-slate-200 rounded-xl hover:bg-slate-100 transition-all cursor-pointer bg-white"
+              >
+                Close Report
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setPrintReportData(viewShiftReportModalData);
+                }}
+                className="flex-1 py-2.5 text-xs font-semibold text-white bg-primary hover:bg-primary-hover rounded-xl shadow-sm transition-all cursor-pointer flex items-center justify-center gap-2"
+              >
+                <Printer className="h-4 w-4 text-white" />
+                <span>Print Receipt Report</span>
+              </button>
+            </div>
+          </div>
+        </>
       )}
 
       {/* PRINT-ONLY SHIFT CLOSING REPORT */}

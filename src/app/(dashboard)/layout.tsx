@@ -97,6 +97,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { name: 'User Management', href: '/users', icon: UserCheck, show: isAdmin },
   ];
 
+  const bottomNavItems = [
+    { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+    { name: 'POS Billing', href: '/pos', icon: Printer },
+    { name: 'Menu', href: '/menu', icon: UtensilsCrossed },
+    { name: 'Reports', href: '/reports', icon: ClipboardList },
+    { name: 'Users', href: '/users', icon: UserCheck },
+  ];
+
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden">
       {/* Mobile Sidebar overlay */}
@@ -159,20 +167,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       {/* Main Workspace Area */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Header bar */}
-        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6 z-30 shrink-0">
-          <div className="flex items-center gap-3">
+        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 sm:px-6 z-30 shrink-0">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <button 
               onClick={() => setSidebarOpen(true)}
-              className="lg:hidden p-2 text-slate-600 hover:bg-slate-50 rounded-lg"
+              className="lg:hidden p-2 text-slate-600 hover:bg-slate-50 rounded-lg shrink-0"
             >
               <Menu className="h-5 w-5" />
             </button>
-            <h1 className="text-base font-semibold text-slate-800 capitalize tracking-tight">
+            <h1 className="text-sm sm:text-base font-semibold text-slate-800 capitalize tracking-tight truncate">
               {pathname.substring(1).replace('-', ' ') || 'Dashboard'}
             </h1>
           </div>
 
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-3 sm:gap-6">
             {/* Shift Tracker Pill */}
             {!loadingShift && (
               <>
@@ -194,12 +202,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             )}
 
             {/* Profile Avatar info */}
-            <div className="flex items-center gap-3 border-l border-slate-200 pl-6">
+            <div className="flex items-center gap-2 sm:gap-3 border-l border-slate-200 pl-3 sm:pl-6">
               <div className="flex flex-col text-right">
-                <span className="text-xs font-semibold text-slate-850 leading-tight">{user.name}</span>
-                <span className="text-xxs font-semibold text-slate-400 tracking-wider uppercase">{user.role}</span>
+                <span className="text-xs font-semibold text-slate-850 leading-tight truncate max-w-[100px] sm:max-w-none">{user.name}</span>
+                <span className="text-[10px] font-semibold text-slate-400 tracking-wider uppercase">{user.role}</span>
               </div>
-              <div className="h-9 w-9 rounded-xl bg-slate-100 text-slate-700 font-semibold flex items-center justify-center text-xs border border-slate-200">
+              <div className="h-9 w-9 rounded-xl bg-slate-100 text-slate-700 font-semibold flex items-center justify-center text-xs border border-slate-200 shrink-0">
                 {user.name.charAt(0).toUpperCase()}
               </div>
             </div>
@@ -207,11 +215,35 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </header>
 
         {/* Dynamic Inner Panel Workspace */}
-        <main className="flex-1 overflow-y-auto bg-slate-50 p-6">
+        <main className={`flex-1 overflow-y-auto bg-slate-50 p-4 sm:p-6 ${isAdmin ? 'pb-24 lg:pb-6' : 'pb-6'}`}>
           <div className="max-w-7xl mx-auto">
             {children}
           </div>
         </main>
+
+        {/* ADMIN-ONLY MOBILE BOTTOM NAVIGATION BAR */}
+        {isAdmin && (
+          <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200 px-2 py-1.5 flex items-center justify-around lg:hidden shadow-lg">
+            {bottomNavItems.map((item) => {
+              const active = pathname === item.href;
+              const Icon = item.icon;
+              return (
+                <Link
+                  key={item.name}
+                  href={item.href}
+                  className={`flex flex-col items-center justify-center py-1 px-2.5 rounded-xl transition-all cursor-pointer ${
+                    active
+                      ? 'text-primary font-bold bg-primary-light/60 scale-105'
+                      : 'text-slate-400 hover:text-slate-700 font-medium'
+                  }`}
+                >
+                  <Icon className={`h-5 w-5 ${active ? 'text-primary' : 'text-slate-400'}`} />
+                  <span className="text-[10px] mt-0.5 tracking-tight">{item.name}</span>
+                </Link>
+              );
+            })}
+          </nav>
+        )}
       </div>
     </div>
   );

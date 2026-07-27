@@ -21,7 +21,12 @@ import {
   Tag,
   AlertCircle,
   Upload,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Download,
+  FileDown,
+  FileUp,
+  FileJson,
+  CheckCircle2
 } from 'lucide-react';
 
 // ZOD Validation Schemas
@@ -77,6 +82,113 @@ export default function MenuPage() {
   // Search & Filters
   const [dishSearch, setDishSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
+
+  // JSON Import/Export states
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importJsonData, setImportJsonData] = useState<any | null>(null);
+  const [importPreviewStats, setImportPreviewStats] = useState<{ categoryCount: number; dishCount: number } | null>(null);
+  const [importError, setImportError] = useState<string | null>(null);
+  const [isImporting, setIsImporting] = useState(false);
+  const [importResult, setImportResult] = useState<any | null>(null);
+
+  // Handle Export JSON
+  const handleExportJson = () => {
+    const exportData = {
+      version: '1.0',
+      exportedAt: new Date().toISOString(),
+      categories: categories.map((c) => ({
+        name: c.name,
+        description: c.description || '',
+        isActive: c.isActive,
+      })),
+      dishes: dishes.map((d) => ({
+        name: d.name,
+        description: d.description || '',
+        price: Number(d.price),
+        taxRate: Number(d.taxRate),
+        preparationTime: d.preparationTime,
+        imageUrl: d.imageUrl || '',
+        isAvailable: d.isAvailable,
+        categoryName: d.category?.name || 'General',
+      })),
+    };
+
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `kyra-pos-menu-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  // Handle File Selection for Import
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setImportFile(file);
+    setImportError(null);
+    setImportResult(null);
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const text = event.target?.result as string;
+        const json = JSON.parse(text);
+        if (!json || typeof json !== 'object') {
+          throw new Error('Invalid JSON file structure');
+        }
+
+        let dishesList: any[] = [];
+        let categoriesList: any[] = [];
+
+        if (Array.isArray(json)) {
+          dishesList = json;
+        } else {
+          dishesList = Array.isArray(json.dishes) ? json.dishes : [];
+          categoriesList = Array.isArray(json.categories) ? json.categories : [];
+        }
+
+        if (dishesList.length === 0 && categoriesList.length === 0) {
+          throw new Error('No categories or dishes found in JSON file');
+        }
+
+        setImportJsonData({ categories: categoriesList, dishes: dishesList });
+        setImportPreviewStats({
+          categoryCount: categoriesList.length,
+          dishCount: dishesList.length,
+        });
+      } catch (err: any) {
+        setImportError(err.message || 'Failed to parse JSON file');
+        setImportJsonData(null);
+        setImportPreviewStats(null);
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  // Execute Bulk Import
+  const executeImport = async () => {
+    if (!importJsonData) return;
+    setIsImporting(true);
+    setImportError(null);
+
+    try {
+      const res = await api.post('/dishes/bulk-import', importJsonData);
+      setImportResult(res.data);
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
+      queryClient.invalidateQueries({ queryKey: ['dishes'] });
+    } catch (err: any) {
+      setImportError(err.response?.data?.message || err.message || 'Failed to import menu JSON');
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
 
   // 1. Fetch Categories and Dishes
   const { data: categories = [], isLoading: loadingCats } = useQuery<Category[]>({
@@ -288,13 +400,40 @@ export default function MenuPage() {
           </button>
         </div>
 
-        <button
-          onClick={activeTab === 'dishes' ? openAddDish : openAddCategory}
-          className="flex items-center gap-1.5 px-4 py-2 bg-primary hover:bg-primary-hover text-white font-semibold text-xxs rounded-lg shadow-sm active-press transition-colors cursor-pointer"
-        >
-          <Plus className="h-4 w-4" />
-          <span>{activeTab === 'dishes' ? 'Create Dish' : 'Create Category'}</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleExportJson}
+            className="flex items-center gap-1.5 px-3 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200/80 font-semibold text-xxs rounded-lg shadow-xxs active-press transition-colors cursor-pointer"
+            title="Download full menu as JSON file"
+          >
+            <FileDown className="h-4 w-4 text-emerald-600" />
+            <span>Export JSON</span>
+          </button>
+
+          <button
+            onClick={() => {
+              setImportFile(null);
+              setImportJsonData(null);
+              setImportPreviewStats(null);
+              setImportError(null);
+              setImportResult(null);
+              setShowImportModal(true);
+            }}
+            className="flex items-center gap-1.5 px-3 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200/80 font-semibold text-xxs rounded-lg shadow-xxs active-press transition-colors cursor-pointer"
+            title="Upload and bulk import menu from JSON file"
+          >
+            <FileUp className="h-4 w-4 text-blue-600" />
+            <span>Import JSON</span>
+          </button>
+
+          <button
+            onClick={activeTab === 'dishes' ? openAddDish : openAddCategory}
+            className="flex items-center gap-1.5 px-4 py-2 bg-primary hover:bg-primary-hover text-white font-semibold text-xxs rounded-lg shadow-sm active-press transition-colors cursor-pointer"
+          >
+            <Plus className="h-4 w-4" />
+            <span>{activeTab === 'dishes' ? 'Create Dish' : 'Create Category'}</span>
+          </button>
+        </div>
       </div>
 
       {loadingDishes || loadingCats ? (
@@ -721,6 +860,148 @@ export default function MenuPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </>
+      )}
+
+      {/* DIALOG 3: IMPORT JSON DIALOG */}
+      {showImportModal && (
+        <>
+          <div
+            className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-40 transition-opacity"
+            onClick={() => setShowImportModal(false)}
+          />
+          <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-lg bg-white rounded-2xl shadow-2xl border border-slate-200 z-50 overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="flex items-center justify-between p-5 border-b border-slate-100 bg-slate-50/50">
+              <div className="flex items-center gap-2">
+                <div className="p-2 bg-blue-50 text-blue-600 rounded-lg">
+                  <FileJson className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-sm text-slate-850">Import Menu JSON</h3>
+                  <p className="text-xxs text-slate-400">Upload menu categories & dishes from JSON file</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowImportModal(false)}
+                className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 transition-colors"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-5 overflow-y-auto">
+              {/* File Selector */}
+              <div className="space-y-2">
+                <label className="block text-xxs font-bold uppercase tracking-wider text-slate-500">
+                  Select Menu JSON File
+                </label>
+                <div className="flex items-center gap-3">
+                  <label
+                    htmlFor="menu-json-file"
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-slate-50 hover:bg-slate-100 border border-dashed border-slate-300 rounded-xl cursor-pointer transition-all text-xs font-semibold text-slate-700"
+                  >
+                    <FileUp className="h-4 w-4 text-blue-600" />
+                    <span>{importFile ? importFile.name : 'Choose JSON file...'}</span>
+                  </label>
+                  <input
+                    type="file"
+                    id="menu-json-file"
+                    accept=".json,application/json"
+                    onChange={handleFileSelect}
+                    className="hidden"
+                  />
+                </div>
+              </div>
+
+              {/* Errors */}
+              {importError && (
+                <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl flex items-start gap-2.5 text-rose-700 text-xs font-medium">
+                  <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                  <span>{importError}</span>
+                </div>
+              )}
+
+              {/* Success Result */}
+              {importResult && (
+                <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl space-y-2 text-xs text-emerald-800">
+                  <div className="flex items-center gap-2 font-bold text-emerald-900">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                    <span>Menu Import Completed Successfully!</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-xxs pt-1">
+                    <div className="bg-white/80 p-2 rounded-lg border border-emerald-100">
+                      Categories Created: <span className="font-bold">{importResult.categoriesCreated || 0}</span>
+                    </div>
+                    <div className="bg-white/80 p-2 rounded-lg border border-emerald-100">
+                      Categories Updated: <span className="font-bold">{importResult.categoriesUpdated || 0}</span>
+                    </div>
+                    <div className="bg-white/80 p-2 rounded-lg border border-emerald-100">
+                      Dishes Created: <span className="font-bold">{importResult.dishesCreated || 0}</span>
+                    </div>
+                    <div className="bg-white/80 p-2 rounded-lg border border-emerald-100">
+                      Dishes Updated: <span className="font-bold">{importResult.dishesUpdated || 0}</span>
+                    </div>
+                  </div>
+                  {importResult.errors && importResult.errors.length > 0 && (
+                    <div className="mt-2 text-rose-600 text-xxs space-y-1">
+                      <p className="font-bold">Warnings:</p>
+                      {importResult.errors.map((e: string, idx: number) => (
+                        <p key={idx}>• {e}</p>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Preview Stats */}
+              {importPreviewStats && !importResult && (
+                <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+                  <h4 className="text-xs font-bold text-slate-700">JSON File Summary</h4>
+                  <div className="grid grid-cols-2 gap-3 text-xs">
+                    <div className="bg-white p-3 rounded-lg border border-slate-200 shadow-xxs flex items-center justify-between">
+                      <span className="text-slate-500 font-medium">Categories</span>
+                      <span className="font-bold text-slate-850 bg-slate-100 px-2 py-0.5 rounded">
+                        {importPreviewStats.categoryCount}
+                      </span>
+                    </div>
+                    <div className="bg-white p-3 rounded-lg border border-slate-200 shadow-xxs flex items-center justify-between">
+                      <span className="text-slate-500 font-medium">Dishes</span>
+                      <span className="font-bold text-slate-850 bg-slate-100 px-2 py-0.5 rounded">
+                        {importPreviewStats.dishCount}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="p-5 border-t border-slate-100 bg-slate-50/50 flex gap-3">
+              <button
+                type="button"
+                onClick={() => setShowImportModal(false)}
+                className="flex-1 py-2.5 text-xs font-semibold text-slate-650 border border-slate-200 rounded-xl hover:bg-slate-100 transition-all cursor-pointer bg-white"
+              >
+                {importResult ? 'Close' : 'Cancel'}
+              </button>
+              {!importResult && (
+                <button
+                  type="button"
+                  onClick={executeImport}
+                  disabled={!importJsonData || isImporting}
+                  className="flex-1 py-2.5 text-xs font-semibold text-white bg-primary hover:bg-primary-hover rounded-xl shadow-sm transition-all cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2 active-press"
+                >
+                  {isImporting ? (
+                    <>
+                      <Loader className="h-4 w-4 animate-spin text-white" />
+                      <span>Importing...</span>
+                    </>
+                  ) : (
+                    <span>Confirm & Import</span>
+                  )}
+                </button>
+              )}
+            </div>
           </div>
         </>
       )}

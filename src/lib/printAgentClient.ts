@@ -5,7 +5,7 @@
  */
 
 const AGENT_BASE_URL = 'http://localhost:4000';
-const DEFAULT_TIMEOUT_MS = 2000;
+const DEFAULT_TIMEOUT_MS = 1000;
 
 export interface PrintAgentResponse<T = any> {
   success: boolean;
@@ -77,14 +77,14 @@ export class PrintAgentClient {
    * Health Check
    */
   public static async getHealth(): Promise<PrintAgentResponse> {
-    return this.request('/health', { method: 'GET' }, 1200);
+    return this.request('/health', { method: 'GET' }, 800);
   }
 
   /**
    * Version Check
    */
   public static async getVersion(): Promise<PrintAgentResponse> {
-    return this.request('/version', { method: 'GET' }, 1200);
+    return this.request('/version', { method: 'GET' }, 800);
   }
 
   /**
@@ -94,7 +94,7 @@ export class PrintAgentClient {
     return this.request('/print/customer', {
       method: 'POST',
       body: JSON.stringify(payload),
-    }, 2500);
+    }, 1000);
   }
 
   /**
@@ -104,7 +104,7 @@ export class PrintAgentClient {
     return this.request('/print/kot', {
       method: 'POST',
       body: JSON.stringify(payload),
-    }, 2500);
+    }, 1000);
   }
 
   /**
@@ -114,6 +114,6 @@ export class PrintAgentClient {
     return this.request('/print/report', {
       method: 'POST',
       body: JSON.stringify(payload),
-    }, 2500);
+    }, 1000);
   }
 }
