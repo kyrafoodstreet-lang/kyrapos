@@ -17,6 +17,8 @@ import {
   HelpCircle,
   DollarSign,
   TrendingUp,
+  TrendingDown,
+  CreditCard,
   CircleDollarSign,
   Eye,
   FileText,
@@ -62,6 +64,21 @@ export default function ShiftsPage() {
   const user = useAuthStore((state) => state.user);
   const activeShift = useShiftStore((state) => state.activeShift);
   const setActiveShift = useShiftStore((state) => state.setActiveShift);
+
+  // Live Active Shift Query to ensure live Cash & UPI sales totals auto-refresh
+  const { data: liveActiveShift } = useQuery<Shift | null>({
+    queryKey: ['activeShift'],
+    queryFn: async () => {
+      const res = await api.get('/shifts/active');
+      if (res.data) {
+        setActiveShift(res.data);
+      }
+      return res.data;
+    },
+    refetchInterval: 5000,
+  });
+
+  const currentActive = liveActiveShift || activeShift;
 
   // Form Inputs
   const [openingCash, setOpeningCash] = useState('');
@@ -224,10 +241,63 @@ export default function ShiftsPage() {
         </div>
       )}
 
+      {/* LIVE SHIFT SALES SUMMARY METRICS */}
+      {currentActive && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 animate-fade-in">
+          {/* Total Cash Sales */}
+          <div className="bg-white border border-slate-200 p-4.5 rounded-2xl shadow-sm space-y-1">
+            <div className="flex items-center justify-between">
+              <span className="text-xxs font-bold text-slate-400 uppercase tracking-wider">Total Cash Sales</span>
+              <div className="h-8 w-8 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center border border-emerald-200">
+                <DollarSign className="h-4 w-4" />
+              </div>
+            </div>
+            <h3 className="text-lg font-bold text-slate-900">₹{Number(currentActive.computedCashSales || 0).toFixed(2)}</h3>
+            <p className="text-[10px] text-emerald-600 font-semibold">Live cash drawer receipts</p>
+          </div>
+
+          {/* Total UPI Sales */}
+          <div className="bg-white border border-slate-200 p-4.5 rounded-2xl shadow-sm space-y-1">
+            <div className="flex items-center justify-between">
+              <span className="text-xxs font-bold text-slate-400 uppercase tracking-wider">Total UPI Sales</span>
+              <div className="h-8 w-8 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center border border-blue-200">
+                <CircleDollarSign className="h-4 w-4" />
+              </div>
+            </div>
+            <h3 className="text-lg font-bold text-slate-900">₹{Number(currentActive.computedUpiSales || 0).toFixed(2)}</h3>
+            <p className="text-[10px] text-blue-600 font-semibold">Live digital UPI receipts</p>
+          </div>
+
+          {/* Total Card Sales */}
+          <div className="bg-white border border-slate-200 p-4.5 rounded-2xl shadow-sm space-y-1">
+            <div className="flex items-center justify-between">
+              <span className="text-xxs font-bold text-slate-400 uppercase tracking-wider">Total Card Sales</span>
+              <div className="h-8 w-8 bg-purple-50 text-purple-600 rounded-xl flex items-center justify-center border border-purple-200">
+                <CreditCard className="h-4 w-4" />
+              </div>
+            </div>
+            <h3 className="text-lg font-bold text-slate-900">₹{Number(currentActive.computedCardSales || 0).toFixed(2)}</h3>
+            <p className="text-[10px] text-purple-600 font-semibold">Card terminal transactions</p>
+          </div>
+
+          {/* Logged Expenses */}
+          <div className="bg-white border border-slate-200 p-4.5 rounded-2xl shadow-sm space-y-1">
+            <div className="flex items-center justify-between">
+              <span className="text-xxs font-bold text-slate-400 uppercase tracking-wider">Logged Expenses</span>
+              <div className="h-8 w-8 bg-rose-50 text-rose-600 rounded-xl flex items-center justify-center border border-rose-200">
+                <TrendingDown className="h-4 w-4" />
+              </div>
+            </div>
+            <h3 className="text-lg font-bold text-slate-900">₹{Number(currentActive.computedExpenses || 0).toFixed(2)}</h3>
+            <p className="text-[10px] text-rose-500 font-semibold">Shift petty cash payouts</p>
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* SHIFT CONTROL SECTION (Left columns) */}
         <div className="lg:col-span-2 space-y-6">
-          {!activeShift ? (
+          {!currentActive ? (
             /* Open Shift Panel */
             <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm space-y-4">
               <div className="flex items-center gap-3 text-slate-805">
@@ -283,12 +353,12 @@ export default function ShiftsPage() {
                 <div className="text-center">
                   <span className="text-xxs font-semibold text-slate-400 uppercase">Start Time</span>
                   <p className="text-xs font-semibold text-slate-800 mt-1">
-                    {new Date(activeShift.openingTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    {new Date(currentActive.openingTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </p>
                 </div>
                 <div className="text-center col-span-2 sm:col-span-1">
                   <span className="text-xxs font-semibold text-slate-400 uppercase">Opening Cash</span>
-                  <p className="text-xs font-semibold text-slate-900 mt-1">₹{Number(activeShift.openingCash).toFixed(2)}</p>
+                  <p className="text-xs font-semibold text-slate-900 mt-1">₹{Number(currentActive.openingCash).toFixed(2)}</p>
                 </div>
               </div>
 
@@ -384,19 +454,35 @@ export default function ShiftsPage() {
             <History className="h-4.5 w-4.5 text-slate-400" />
             <h3 className="font-semibold text-xs tracking-tight">Your Active Stats</h3>
           </div>
-          {activeShift ? (
+          {currentActive ? (
             <div className="space-y-4">
               <p className="text-xxs text-slate-500 font-medium leading-relaxed">
-                Summary of the open shift. These values will be compared against physical counting upon closing.
+                Live audit summary of the open shift. Sales update in real-time.
               </p>
               <div className="space-y-3 font-semibold text-xxs text-slate-600">
-                <div className="flex justify-between">
+                <div className="flex justify-between border-b border-slate-100 pb-2">
                   <span>Opening Cash</span>
-                  <span className="text-slate-850">₹{Number(activeShift.openingCash).toFixed(2)}</span>
+                  <span className="text-slate-850 font-bold">₹{Number(currentActive.openingCash).toFixed(2)}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span>Start Timestamp</span>
-                  <span className="text-slate-850">{new Date(activeShift.openingTime).toLocaleTimeString()}</span>
+                <div className="flex justify-between text-emerald-700">
+                  <span className="flex items-center gap-1 font-bold">💵 Total Cash Sales</span>
+                  <span className="font-extrabold">₹{Number(currentActive.computedCashSales || 0).toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-blue-700">
+                  <span className="flex items-center gap-1 font-bold">📱 Total UPI Sales</span>
+                  <span className="font-extrabold">₹{Number(currentActive.computedUpiSales || 0).toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-purple-700">
+                  <span className="flex items-center gap-1 font-bold">💳 Total Card Sales</span>
+                  <span className="font-extrabold">₹{Number(currentActive.computedCardSales || 0).toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-rose-600">
+                  <span className="flex items-center gap-1 font-bold">🔻 Logged Expenses</span>
+                  <span className="font-extrabold">-₹{Number(currentActive.computedExpenses || 0).toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between border-t border-slate-200 pt-2 text-slate-900 text-xs font-extrabold">
+                  <span>Expected Cash in Till</span>
+                  <span>₹{(Number(currentActive.openingCash) + Number(currentActive.computedCashSales || 0) - Number(currentActive.computedExpenses || 0)).toFixed(2)}</span>
                 </div>
               </div>
             </div>

@@ -65,6 +65,7 @@ export default function POSPage() {
   const [showDiscountModal, setShowDiscountModal] = useState(false);
   const [tempDiscount, setTempDiscount] = useState(0);
   const [tempDiscountType, setTempDiscountType] = useState<'FLAT' | 'PERCENT'>('FLAT');
+  const [showMobileCart, setShowMobileCart] = useState(false);
 
   // Checkout Payment states
   const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'UPI' | 'MIXED'>('CASH');
@@ -101,7 +102,7 @@ export default function POSPage() {
   // Print Alert State for Non-blocking retry handling
   const [printErrorAlert, setPrintErrorAlert] = useState<{ orderData: any; paymentMethod: string; message: string } | null>(null);
 
-  // Background Non-blocking Print Dispatcher using PrintAgentClient & normalizeOrder
+  // Background Non-blocking Print Dispatcher using PrintAgentClient & normalizeOrder (NO GST CALCULATIONS)
   const dispatchBackgroundPrint = async (completedOrder: any, payMethod: string) => {
     if (!completedOrder) return;
     const normalized = normalizeOrder(completedOrder, [], { user, paymentMethod: payMethod });
@@ -132,34 +133,10 @@ export default function POSPage() {
         amount: i.amount,
       }));
 
-      // Group taxes by rate
-      const taxGroups: Record<number, number> = {};
-      normalized.items.forEach((i) => {
-        const rate = i.taxRate;
-        const amt = i.amount * (rate / 100);
-        taxGroups[rate] = (taxGroups[rate] || 0) + amt;
-      });
-
-      const taxSummary: any[] = [];
-      Object.entries(taxGroups).forEach(([rateStr, amount]) => {
-        const rate = Number(rateStr);
-        taxSummary.push({
-          name: 'CGST',
-          rate: rate / 2,
-          amount: amount / 2,
-        });
-        taxSummary.push({
-          name: 'SGST',
-          rate: rate / 2,
-          amount: amount / 2,
-        });
-      });
-
       const receiptPayload = {
         restaurantName: 'Kyra Cafe',
         restaurantAddress: '1st Cross Road, Bangalore',
         restaurantPhone: '9876543210',
-        gstNumber: '29AAAAA1111A1Z1',
         billNumber: normalized.orderNumber,
         date: formattedDate,
         time: formattedTime,
@@ -170,7 +147,7 @@ export default function POSPage() {
         items: receiptItems,
         subtotal: normalized.subtotal,
         discount: normalized.discountTotal,
-        taxSummary,
+        taxSummary: [],
         grandTotal: normalized.grandTotal,
         paymentMethod: payMethod,
         customerName: normalized.customerName !== 'Walk-in Customer' ? normalized.customerName : undefined,
@@ -620,6 +597,30 @@ export default function POSPage() {
           </div>
 
           <div className="flex items-center gap-3">
+            {/* Print Agent Status Pill */}
+            <div className={`px-3 py-1 text-xxs font-bold rounded-full border flex items-center gap-1.5 ${
+              printAgentStatus === 'ONLINE'
+                ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                : printAgentStatus === 'OFFLINE'
+                ? 'bg-rose-50 text-rose-800 border-rose-200'
+                : 'bg-slate-100 text-slate-600 border-slate-200'
+            }`}>
+              <span className={`h-1.5 w-1.5 rounded-full ${
+                printAgentStatus === 'ONLINE'
+                  ? 'bg-emerald-600 animate-pulse'
+                  : printAgentStatus === 'OFFLINE'
+                  ? 'bg-rose-600'
+                  : 'bg-slate-400'
+              }`} />
+              <span>
+                {printAgentStatus === 'ONLINE'
+                  ? 'Print Agent Online'
+                  : printAgentStatus === 'OFFLINE'
+                  ? 'Print Agent Offline'
+                  : 'Checking Printer...'}
+              </span>
+            </div>
+
             {lastCompletedOrder && (
               <button
                 onClick={() => dispatchBackgroundPrint(lastCompletedOrder.order, lastCompletedOrder.paymentMethod)}
@@ -629,12 +630,12 @@ export default function POSPage() {
                 Reprint #{lastCompletedOrder.order.orderNumber}
               </button>
             )}
-            <div className="px-3 py-1 bg-emerald-50 text-emerald-800 text-xxs font-semibold rounded-full border border-emerald-200">
+            <div className="hidden sm:block px-3 py-1 bg-emerald-50 text-emerald-800 text-xxs font-semibold rounded-full border border-emerald-200">
               Shift Active
             </div>
             <div className="flex items-center gap-2 text-xs text-slate-600">
               <User className="h-4 w-4 text-slate-450" />
-              <span className="font-medium">{user.name}</span>
+              <span className="font-medium hidden sm:inline">{user.name}</span>
             </div>
           </div>
         </header>
@@ -695,9 +696,9 @@ export default function POSPage() {
                       </div>
                     )}
                     <div className="mt-3 flex-1 flex flex-col justify-between">
-                      <h4 className="font-medium text-xs text-slate-800 line-clamp-2 leading-tight">{dish.name}</h4>
+                      <h4 className="text-sm font-semibold text-slate-850 line-clamp-2 leading-tight">{dish.name}</h4>
                       <div className="mt-2 flex items-center justify-between">
-                        <span className="text-xs font-semibold text-slate-900">₹{Number(dish.price).toFixed(2)}</span>
+                        <span className="text-sm font-medium text-slate-900">₹{Number(dish.price).toFixed(2)}</span>
                       </div>
                     </div>
                   </div>
@@ -708,59 +709,44 @@ export default function POSPage() {
         </div>
       </div>
 
-      {/* RIGHT SECTION: Cart Sidebar (Redesigned & Cleaned) */}
-      <div className="w-[410px] bg-slate-900/5 backdrop-blur-md border-l border-slate-200 flex flex-col h-full shadow-2xl relative select-none">
-        {/* Cart Header */}
-        <div className="p-4 bg-white border-b border-slate-100 flex flex-col gap-2 shrink-0">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <div className="p-2 bg-slate-900 text-white rounded-xl shadow-xs">
-                <ShoppingCart className="h-4 w-4" />
-              </div>
-              <div>
-                <h3 className="text-sm font-bold tracking-tight text-slate-900 leading-none">Active Order</h3>
-                <p className="text-[11px] font-medium text-slate-400 mt-0.5">Billing & Checkout</p>
-              </div>
-            </div>
-            <span className="text-xs font-semibold bg-slate-100 px-3 py-1 rounded-full text-slate-600 border border-slate-200/60">
-              {cart.items.length} {cart.items.length === 1 ? 'item' : 'items'}
-            </span>
-          </div>
+      {/* RIGHT SECTION: Cart Sidebar & Checkout (Responsive Drawer on Mobile) */}
+      {showMobileCart && (
+        <div 
+          className="fixed inset-0 z-40 bg-slate-900/40 backdrop-blur-xs lg:hidden"
+          onClick={() => setShowMobileCart(false)}
+        />
+      )}
 
-          {/* Non-blocking background print alert banner */}
-          {printErrorAlert && (
-            <div className="bg-amber-50 border border-amber-200/80 text-amber-900 p-3 rounded-xl flex flex-col gap-2 text-xs mt-1 animate-fade-in shadow-xs">
-              <div className="flex items-start justify-between gap-1.5">
-                <div className="flex items-center gap-2 font-semibold text-amber-850">
-                  <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
-                  <span>{printErrorAlert.message}</span>
-                </div>
-                <button 
-                  onClick={() => setPrintErrorAlert(null)}
-                  className="text-amber-400 hover:text-amber-700 shrink-0 p-0.5"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-              <div className="flex items-center justify-end gap-2 pt-1 border-t border-amber-200/60">
-                <button 
-                  onClick={() => dispatchBackgroundPrint(printErrorAlert.orderData, printErrorAlert.paymentMethod)}
-                  className="px-2.5 py-1 bg-amber-600 text-white rounded-lg font-bold text-[11px] hover:bg-amber-700 transition-colors flex items-center gap-1.5"
-                >
-                  <RefreshCw className="h-3 w-3" />
-                  Retry Agent
-                </button>
-                <button 
-                  onClick={() => window.print()}
-                  className="px-2.5 py-1 bg-white border border-amber-300 text-slate-700 rounded-lg font-bold text-[11px] hover:bg-amber-100 transition-colors flex items-center gap-1.5"
-                >
-                  <Printer className="h-3 w-3 text-slate-500" />
-                  Browser Print
-                </button>
-              </div>
+        <div className={`fixed inset-y-0 right-0 z-50 w-full sm:w-96 bg-white border-l border-slate-200 flex flex-col shrink-0 transition-transform duration-200 ease-in-out lg:static lg:translate-x-0 ${
+          showMobileCart ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'
+        }`}>
+          {/* Header Panel with Close for Mobile */}
+          <div className="p-4 border-b border-slate-200 flex items-center justify-between shrink-0 bg-white">
+            <div className="flex items-center gap-2">
+              <ShoppingCart className="h-5 w-5 text-primary" />
+              <h3 className="font-bold text-sm text-slate-850">Current Order Cart</h3>
+              <span className="px-2 py-0.5 bg-primary-light text-slate-900 font-bold rounded-full text-xxs border border-primary/20">
+                {cart.items.length} items
+              </span>
             </div>
-          )}
-        </div>
+
+            <div className="flex items-center gap-2">
+              {cart.items.length > 0 && (
+                <button
+                  onClick={() => cart.clearCart()}
+                  className="px-2 py-1 text-rose-600 hover:bg-rose-50 rounded-lg text-xxs font-bold transition-colors cursor-pointer border border-rose-200"
+                >
+                  Clear All
+                </button>
+              )}
+              <button
+                onClick={() => setShowMobileCart(false)}
+                className="lg:hidden p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+          </div>
 
         {/* Segmented Order Type & Customer Panel */}
         <div className="p-4 bg-white border-b border-slate-100 space-y-3 shrink-0">
@@ -852,8 +838,8 @@ export default function POSPage() {
           </div>
         </div>
 
-        {/* Cart Line Items List (Scrollable Area with Strict Height Isolation) */}
-        <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-2.5 bg-slate-50/60 custom-scrollbar">
+        {/* Cart Line Items List (Scrollable Area with Touch Controls & Spacious Padding) */}
+        <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-3 bg-slate-50/60 custom-scrollbar">
           {cart.items.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-slate-400 gap-2.5 py-12">
               <div className="p-4 bg-slate-100 rounded-full text-slate-300">
@@ -866,55 +852,50 @@ export default function POSPage() {
             cart.items.map((item) => (
               <div 
                 key={item.dishId} 
-                className="bg-white p-3 rounded-2xl border border-slate-200/80 shadow-xs hover:border-slate-300 hover:shadow-sm transition-all space-y-2.5"
+                className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs hover:border-slate-300 transition-all flex items-center justify-between gap-3"
               >
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <h5 className="font-bold text-xs text-slate-900 leading-snug">{item.name}</h5>
-                    <span className="text-[11px] text-slate-400 font-medium">₹{item.price.toFixed(2)} each</span>
-                  </div>
-                  <button
-                    onClick={() => cart.removeItem(item.dishId)}
-                    className="p-1 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all cursor-pointer"
-                    title="Remove item"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
+                {/* Item Name & Total Amount */}
+                <div className="flex-1 min-w-0">
+                  <h5 className="text-sm font-semibold text-slate-900 leading-snug truncate">{item.name}</h5>
+                  <span className="text-sm font-medium text-slate-800 block mt-0.5">₹{(item.price * item.quantity).toFixed(2)}</span>
                 </div>
 
-                <div className="flex items-center justify-between pt-1 border-t border-slate-100">
-                  {/* Tactile Quantity Controls */}
-                  <div className="flex items-center border border-slate-200 rounded-xl bg-slate-50 overflow-hidden p-0.5">
+                {/* Tactile Touch Quantity Controls (+ / -) & Delete Button */}
+                <div className="flex items-center gap-2 shrink-0">
+                  <div className="flex items-center border border-slate-200 rounded-xl bg-slate-50 overflow-hidden p-0.5 shadow-xxs">
                     <button
                       onClick={() => cart.updateQuantity(item.dishId, item.quantity - 1)}
-                      className="w-7 h-7 flex items-center justify-center text-slate-700 hover:bg-white rounded-lg font-bold text-xs transition-colors cursor-pointer"
+                      className="w-7 h-7 flex items-center justify-center bg-white border border-slate-200 rounded-lg text-slate-700 hover:bg-slate-100 font-extrabold text-sm active-press transition-all cursor-pointer"
                     >
                       -
                     </button>
-                    <span className="w-8 text-center text-xs font-black text-slate-900 select-none">
+                    <span className="w-7 text-center text-xs font-black text-slate-900 select-none">
                       {item.quantity}
                     </span>
                     <button
                       onClick={() => cart.updateQuantity(item.dishId, item.quantity + 1)}
-                      className="w-7 h-7 flex items-center justify-center text-slate-700 hover:bg-white rounded-lg font-bold text-xs transition-colors cursor-pointer"
+                      className="w-7 h-7 flex items-center justify-center bg-white border border-slate-200 rounded-lg text-slate-700 hover:bg-slate-100 font-extrabold text-sm active-press transition-all cursor-pointer"
                     >
                       +
                     </button>
                   </div>
-                  
-                  {/* Line Item Total */}
-                  <span className="text-xs font-black text-slate-900">
-                    ₹{(item.price * item.quantity).toFixed(2)}
-                  </span>
+
+                  <button
+                    onClick={() => cart.removeItem(item.dishId)}
+                    className="p-1.5 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all cursor-pointer"
+                    title="Remove item"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
                 </div>
               </div>
             ))
           )}
         </div>
 
-        {/* Fixed Footer: Financial Summary & Actions */}
+        {/* Fixed Footer: Financial Summary & Actions (NO GST) */}
         <div className="p-4 bg-white border-t border-slate-200 space-y-3.5 shrink-0 shadow-lg z-10">
-          {/* Subtotal, Discount & Tax */}
+          {/* Subtotal & Discount (GST REMOVED) */}
           <div className="space-y-1.5 text-xs font-medium text-slate-500 px-1">
             <div className="flex justify-between items-center">
               <span>Subtotal</span>
@@ -929,19 +910,15 @@ export default function POSPage() {
                 <span>-₹{discountTotal.toFixed(2)}</span>
               </div>
             )}
-            <div className="flex justify-between items-center">
-              <span>Tax (GST)</span>
-              <span className="text-slate-900 font-semibold">₹{taxTotal.toFixed(2)}</span>
-            </div>
           </div>
 
-          {/* Grand Total Visual Banner */}
-          <div className="bg-slate-900 text-white p-3.5 rounded-2xl flex justify-between items-center shadow-md">
+          {/* Compact Grand Total Banner */}
+          <div className="bg-slate-900 text-white px-3.5 py-2.5 rounded-xl flex justify-between items-center shadow-xs">
             <div>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Grand Total</span>
-              <span className="text-xs text-slate-300 font-medium">Incl. all taxes</span>
+              <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">GRAND TOTAL</span>
+              <span className="text-[11px] text-slate-300 font-medium">Net total bill</span>
             </div>
-            <span className="text-2xl font-black tracking-tight">₹{grandTotal.toFixed(2)}</span>
+            <span className="text-xl font-black tracking-tight">₹{grandTotal.toFixed(2)}</span>
           </div>
 
           {/* Payment Method Selector */}
@@ -1004,8 +981,6 @@ export default function POSPage() {
             </div>
           )}
 
-
-
           {/* Primary Submit Button */}
           <button
             onClick={handleDirectCheckoutSubmit}
@@ -1015,28 +990,6 @@ export default function POSPage() {
             <Printer className="h-4 w-4" />
             <span>{isProcessing ? 'Processing Order...' : 'Complete & Print Bill'}</span>
           </button>
-
-          {/* Print Agent Connection Status Bar */}
-          <div className="flex items-center justify-between py-1.5 px-3 bg-slate-50 border border-slate-200/80 rounded-xl text-[11px] font-semibold">
-            <span className="flex items-center gap-2">
-              <span className={`relative flex h-2 w-2`}>
-                <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${printAgentStatus === 'ONLINE' ? 'bg-emerald-400' : 'bg-rose-400'}`}></span>
-                <span className={`relative inline-flex rounded-full h-2 w-2 ${printAgentStatus === 'ONLINE' ? 'bg-emerald-500' : 'bg-rose-500'}`}></span>
-              </span>
-              <span className="text-slate-600">
-                {printAgentStatus === 'ONLINE' ? 'Print Agent Online' : 'Print Agent Offline'}
-              </span>
-            </span>
-            {printAgentStatus !== 'ONLINE' && (
-              <a 
-                href="/KyraPrintAgentSetup.exe"
-                download
-                className="text-emerald-700 hover:underline font-bold"
-              >
-                Setup Agent
-              </a>
-            )}
-          </div>
 
           {/* Bottom Quick Actions Bar */}
           <div className="grid grid-cols-4 gap-1.5 pt-0.5">
