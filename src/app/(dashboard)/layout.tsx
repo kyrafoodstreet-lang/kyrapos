@@ -21,7 +21,14 @@ import {
   AlertCircle,
   Plus,
   Sparkles,
-  Gamepad2
+  Gamepad2,
+  User,
+  TrendingUp,
+  ChevronDown,
+  Layers,
+  Users,
+  Wallet,
+  ShoppingBag
 } from 'lucide-react';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -90,7 +97,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { name: 'Menu Editor', href: '/menu', icon: ClipboardList, show: isAdminOrManager },
     { name: 'Shift Control', href: '/shifts', icon: History, show: true },
     { name: 'Expenses', href: '/expenses', icon: CircleDollarSign, show: true },
-    { name: 'Reports', href: '/reports', icon: ClipboardList, show: true },
+    { name: 'Employee Summary', href: '/employee-summary', icon: User, show: true },
+    { name: 'Executive Summary', href: '/executive-summary', icon: TrendingUp, show: isAdminOrManager },
+    { name: 'Category Summary', href: '/reports/category-summary', icon: Layers, show: true },
+    { name: 'Shift Closing Reports', href: '/reports/shift-closing', icon: History, show: true },
+    { name: 'Sales Trends', href: '/reports/sales-trends', icon: TrendingUp, show: isAdminOrManager },
+    { name: 'Item Revenue', href: '/reports/item-revenue', icon: ShoppingBag, show: isAdminOrManager },
+    { name: 'Expenses Audit', href: '/reports/expenses-audit', icon: Wallet, show: isAdminOrManager },
     { name: 'Party Hall', href: '/party-hall', icon: Sparkles, show: isAdminOrManager },
     { name: 'Games', href: '/games', icon: Gamepad2, show: true },
     { name: 'Print Center', href: '/settings/printer', icon: Printer, show: isAdminOrManager },
@@ -136,15 +149,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             return (
               <Link
                 key={item.name}
-                href={item.href}
+                href={item.href || '#'}
                 className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
                   active 
-                    ? 'bg-primary-light text-slate-900 border border-primary/10 shadow-xxs' 
-                    : 'text-slate-500 hover:bg-primary-light hover:text-slate-900'
+                    ? 'bg-primary-light text-slate-900 border border-primary/10 shadow-xxs font-bold' 
+                    : 'text-slate-500 hover:bg-primary-light hover:text-slate-900 font-semibold'
                 }`}
                 onClick={() => setSidebarOpen(false)}
               >
-                <Icon className={`h-5 w-5 ${active ? 'text-primary' : 'text-slate-400 group-hover:text-slate-650'}`} />
+                <Icon className={`h-5 w-5 ${active ? 'text-primary' : 'text-slate-400 group-hover:text-slate-655'}`} />
                 <span>{item.name}</span>
               </Link>
             );

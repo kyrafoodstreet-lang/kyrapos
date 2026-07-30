@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
-export default function ReportsRedirectPage() {
+export default function EmployeePerformanceRedirectPage() {
   const router = useRouter();
 
   useEffect(() => {
