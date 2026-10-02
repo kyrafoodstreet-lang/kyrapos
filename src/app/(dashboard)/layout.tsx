@@ -30,7 +30,8 @@ import {
   Wallet,
   ShoppingBag,
   IndianRupee,
-  ArrowRight
+  ArrowRight,
+  Receipt
 } from 'lucide-react';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -139,6 +140,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       {
         title: 'MANAGEMENT',
         items: [
+          { name: 'Bill Management', href: '/admin/bills', icon: Receipt, show: isAdminOrManager },
           { name: 'Menu Editor', href: '/menu', icon: ShoppingBag, show: isAdminOrManager },
           { name: 'Finance & Ledger', href: '/finance', icon: IndianRupee, show: isAdmin },
           { name: 'Expenses', href: '/expenses', icon: CircleDollarSign, show: true },

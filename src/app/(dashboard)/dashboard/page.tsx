@@ -22,6 +22,7 @@ import {
   FaMoneyBillWave,
   FaMobileScreenButton,
   FaCreditCard,
+  FaReceipt,
 } from 'react-icons/fa6';
 import { MdSportsGymnastics } from 'react-icons/md';
 
@@ -435,6 +436,15 @@ export function AdminDashboardView() {
               </span>
             )}
           </div>
+
+          {/* Quick Access to Bill Management */}
+          <Link
+            href="/admin/bills"
+            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-900 text-white hover:bg-slate-800 transition-all text-xs font-bold shadow-xs shrink-0"
+          >
+            <FaReceipt className="h-3.5 w-3.5 text-indigo-400" />
+            <span>Bill Management</span>
+          </Link>
         </div>
       </div>
 
