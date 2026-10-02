@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
+import React, { useEffect, useState, Suspense } from 'react';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuthStore } from '@/store/authStore';
 import {
@@ -13,6 +13,7 @@ import {
   Users,
   CreditCard,
   BarChart3,
+  CalendarCheck,
   Settings,
   ArrowLeft,
   Menu,
@@ -21,9 +22,111 @@ import {
   LogOut
 } from 'lucide-react';
 
+function GamesSidebarNav({
+  isAdminOrManager,
+  onItemClick,
+}: {
+  isAdminOrManager: boolean;
+  onItemClick: () => void;
+}) {
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const currentTab = searchParams.get('tab');
+
+  const menuItems = [
+    {
+      name: 'Dashboard',
+      href: '/games',
+      icon: LayoutDashboard,
+      show: true,
+      isActive: pathname === '/games',
+    },
+    {
+      name: 'New Session',
+      href: '/games/sessions/new',
+      icon: PlusCircle,
+      show: true,
+      isActive: pathname === '/games/sessions/new',
+    },
+    {
+      name: 'Active Sessions',
+      href: '/games/sessions?tab=active',
+      icon: Play,
+      show: true,
+      isActive: pathname === '/games/sessions' && (currentTab === 'active' || !currentTab),
+    },
+    {
+      name: 'Completed Sessions',
+      href: '/games/sessions?tab=completed',
+      icon: CheckCircle,
+      show: true,
+      isActive: pathname === '/games/sessions' && currentTab === 'completed',
+    },
+    {
+      name: 'Customers',
+      href: '/games/customers',
+      icon: Users,
+      show: true,
+      isActive: pathname.startsWith('/games/customers'),
+    },
+    {
+      name: 'Payments',
+      href: '/games/payments',
+      icon: CreditCard,
+      show: true,
+      isActive: pathname.startsWith('/games/payments'),
+    },
+    {
+      name: 'Day Close',
+      href: '/games/closing-report',
+      icon: CalendarCheck,
+      show: true,
+      isActive: pathname.startsWith('/games/closing-report'),
+    },
+    {
+      name: 'Reports',
+      href: '/games/reports',
+      icon: BarChart3,
+      show: true,
+      isActive: pathname.startsWith('/games/reports'),
+    },
+    {
+      name: 'Game Settings',
+      href: '/games/settings',
+      icon: Settings,
+      show: isAdminOrManager,
+      isActive: pathname.startsWith('/games/settings'),
+    },
+  ];
+
+  return (
+    <nav className="flex-1 space-y-1.5 overflow-y-auto px-4 py-4">
+      {menuItems.map((item) => {
+        if (!item.show) return null;
+        const Icon = item.icon;
+
+        return (
+          <Link
+            key={item.name}
+            href={item.href}
+            onClick={onItemClick}
+            className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+              item.isActive
+                ? 'bg-[#D94949] text-white shadow-sm shadow-[#D94949]/25 font-bold'
+                : 'text-slate-600 hover:bg-[#D94949]/10 hover:text-[#D94949]'
+            }`}
+          >
+            <Icon className={`h-4.5 w-4.5 shrink-0 ${item.isActive ? 'text-white' : 'text-slate-400 group-hover:text-[#D94949]'}`} />
+            <span>{item.name}</span>
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}
+
 export default function GamesLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const pathname = usePathname();
   const [mounted, setMounted] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -47,23 +150,12 @@ export default function GamesLayout({ children }: { children: React.ReactNode })
   if (!mounted || !token || !user) {
     return (
       <div className="flex h-screen w-screen items-center justify-center bg-slate-50">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-650"></div>
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#D94949]"></div>
       </div>
     );
   }
 
   const isAdminOrManager = user.role === 'ADMIN' || user.role === 'MANAGER';
-
-  const menuItems = [
-    { name: 'Dashboard', href: '/games', icon: LayoutDashboard, show: true },
-    { name: 'New Session', href: '/games/sessions/new', icon: PlusCircle, show: true },
-    { name: 'Active Sessions', href: '/games/sessions?tab=active', icon: Play, show: true },
-    { name: 'Completed Sessions', href: '/games/sessions?tab=completed', icon: CheckCircle, show: true },
-    { name: 'Customers', href: '/games/customers', icon: Users, show: true },
-    { name: 'Payments', href: '/games/payments', icon: CreditCard, show: true },
-    { name: 'Reports', href: '/games/reports', icon: BarChart3, show: true },
-    { name: 'Game Settings', href: '/games/settings', icon: Settings, show: isAdminOrManager },
-  ];
 
   const handleLogout = () => {
     logout();
@@ -85,49 +177,38 @@ export default function GamesLayout({ children }: { children: React.ReactNode })
         sidebarOpen ? 'translate-x-0' : '-translate-x-0 lg:translate-x-0'
       }`}>
         {/* App Logo section */}
-        <div className="flex h-16 items-center gap-2 border-b border-slate-200 px-6 shrink-0 bg-slate-50/50">
-          <Gamepad2 className="h-6 w-6 text-blue-600" />
-          <span className="font-bold tracking-tight text-slate-800">Games POS</span>
-          <span className="text-xxs px-1.5 py-0.5 bg-blue-50 text-blue-655 font-bold rounded">Active</span>
+        <div className="flex h-16 items-center gap-2.5 border-b border-slate-200 px-6 shrink-0 bg-slate-50/50">
+          <div className="h-8 w-8 rounded-xl bg-[#D94949]/10 border border-[#D94949]/20 flex items-center justify-center text-[#D94949]">
+            <Gamepad2 className="h-5 w-5" />
+          </div>
+          <div>
+            <div className="font-bold tracking-tight text-slate-850 text-sm leading-none">Games POS</div>
+            <span className="text-[10px] font-bold text-[#009966] uppercase tracking-wider">Entertainment Zone</span>
+          </div>
         </div>
 
-        {/* Navigation list */}
-        <nav className="flex-1 space-y-1 overflow-y-auto px-4 py-4">
-          {menuItems.map((item) => {
-            if (!item.show) return null;
-            const isActive = pathname === item.href || (item.href !== '/games' && pathname.startsWith(item.href.split('?')[0]));
-            const Icon = item.icon;
+        {/* Navigation list with Suspense */}
+        <Suspense fallback={<div className="flex-1 px-4 py-4" />}>
+          <GamesSidebarNav
+            isAdminOrManager={isAdminOrManager}
+            onItemClick={() => setSidebarOpen(false)}
+          />
+        </Suspense>
 
-            return (
-              <Link
-                key={item.name}
-                href={item.href}
-                onClick={() => setSidebarOpen(false)}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all ${
-                  isActive
-                    ? 'bg-blue-600 text-white shadow-sm shadow-blue-200'
-                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-                }`}
-              >
-                <Icon className="h-4.5 w-4.5 shrink-0" />
-                <span>{item.name}</span>
-              </Link>
-            );
-          })}
-        </nav>
+
 
         {/* Sidebar Footer options */}
         <div className="border-t border-slate-200 p-4 shrink-0 space-y-1.5 bg-slate-50/50">
           <Link
             href="/dashboard"
-            className="flex items-center gap-3 px-3 py-2 text-xs font-semibold text-slate-650 hover:bg-slate-200 hover:text-slate-900 rounded-xl transition-all"
+            className="flex items-center gap-3 px-3 py-2 text-xs font-semibold text-slate-650 hover:bg-slate-200 hover:text-slate-900 rounded-xl transition-all cursor-pointer"
           >
             <ArrowLeft className="h-4.5 w-4.5 text-slate-400" />
             <span>Back to POS</span>
           </Link>
           <button
             onClick={handleLogout}
-            className="flex w-full items-center gap-3 px-3 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 rounded-xl transition-all"
+            className="flex w-full items-center gap-3 px-3 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 rounded-xl transition-all cursor-pointer"
           >
             <LogOut className="h-4.5 w-4.5" />
             <span>Sign Out</span>
@@ -142,7 +223,7 @@ export default function GamesLayout({ children }: { children: React.ReactNode })
           <div className="flex items-center gap-4">
             <button
               onClick={() => setSidebarOpen(true)}
-              className="p-1 hover:bg-slate-100 rounded lg:hidden text-slate-600"
+              className="p-1 hover:bg-slate-100 rounded lg:hidden text-slate-600 cursor-pointer"
             >
               <Menu className="h-5 w-5" />
             </button>
@@ -154,7 +235,7 @@ export default function GamesLayout({ children }: { children: React.ReactNode })
           <div className="flex items-center gap-4">
             {/* User Session card */}
             <div className="flex items-center gap-2.5 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl">
-              <div className="h-7 w-7 rounded-full bg-blue-105 flex items-center justify-center text-blue-650 text-xs font-bold border border-blue-200">
+              <div className="h-7 w-7 rounded-full bg-[#D94949]/10 flex items-center justify-center text-[#D94949] text-xs font-bold border border-[#D94949]/20">
                 {user.name.charAt(0).toUpperCase()}
               </div>
               <div className="text-left leading-tight hidden xs:block">

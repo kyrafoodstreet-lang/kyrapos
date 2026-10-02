@@ -69,7 +69,7 @@ export default function ReportsAnalytics() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-red-600"></div>
       </div>
     );
   }
@@ -106,7 +106,7 @@ export default function ReportsAnalytics() {
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm no-print">
         <div>
           <h1 className="text-xl font-bold text-slate-800 flex items-center gap-2">
-            <BarChart3 className="h-5.5 w-5.5 text-blue-650" />
+            <BarChart3 className="h-5.5 w-5.5 text-[#D94949]" />
             <span>Games Reports & Analytics</span>
           </h1>
           <p className="text-xs text-slate-500 mt-1">
@@ -117,26 +117,26 @@ export default function ReportsAnalytics() {
         {/* Date Selector form */}
         <div className="flex flex-wrap items-center gap-3.5 bg-slate-50 border border-slate-200 rounded-xl p-3 shadow-xs">
           <div className="flex items-center gap-2 text-xs">
-            <span className="text-slate-450 font-bold uppercase tracking-wider text-xxs">From:</span>
+            <span className="text-slate-500 font-bold uppercase tracking-wider text-xxs">From:</span>
             <input
               type="date"
               value={start}
               onChange={(e) => setStart(e.target.value)}
-              className="bg-transparent border border-slate-200 rounded px-2.5 py-1 text-slate-800 font-semibold"
+              className="bg-white border border-slate-200 rounded-lg px-2.5 py-1 text-slate-800 font-semibold focus:border-[#D94949] outline-none"
             />
           </div>
           <div className="flex items-center gap-2 text-xs">
-            <span className="text-slate-450 font-bold uppercase tracking-wider text-xxs">To:</span>
+            <span className="text-slate-500 font-bold uppercase tracking-wider text-xxs">To:</span>
             <input
               type="date"
               value={end}
               onChange={(e) => setEnd(e.target.value)}
-              className="bg-transparent border border-slate-200 rounded px-2.5 py-1 text-slate-800 font-semibold"
+              className="bg-white border border-slate-200 rounded-lg px-2.5 py-1 text-slate-800 font-semibold focus:border-[#D94949] outline-none"
             />
           </div>
           <button
             onClick={handlePrint}
-            className="px-3.5 py-2 bg-blue-650 hover:bg-blue-600 text-white font-semibold text-xs rounded-xl shadow-xs hover:shadow transition-all flex items-center gap-1.5"
+            className="px-3.5 py-2 bg-[#D94949] hover:bg-[#C53B3B] text-white font-semibold text-xs rounded-xl shadow-xs hover:shadow transition-all flex items-center gap-1.5 cursor-pointer"
           >
             <Download className="h-4 w-4" />
             <span>Export Report</span>
@@ -147,7 +147,7 @@ export default function ReportsAnalytics() {
       {/* Main Print Container Section */}
       <div className="space-y-6" id="print-games-report">
         {/* Print Header only displayed when printing */}
-        <div className="hidden print:block border-b border-slate-350 pb-4 mb-6">
+        <div className="hidden print:block border-b border-slate-300 pb-4 mb-6">
           <h1 className="text-lg font-bold text-slate-800">Kyra POS Games Zone - Performance Report</h1>
           <p className="text-xxs text-slate-400">Date Range: {new Date(start).toLocaleDateString()} to {new Date(end).toLocaleDateString()}</p>
         </div>
@@ -158,30 +158,30 @@ export default function ReportsAnalytics() {
             <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
               <div>
                 <span className="text-xxs font-bold text-slate-400 uppercase tracking-wider">Total Revenue</span>
-                <h3 className="text-xl font-bold text-emerald-600 mt-1">₹{report.summary.totalRevenue.toLocaleString()}</h3>
+                <h3 className="text-xl font-bold text-[#009966] mt-1">₹{report.summary.totalRevenue.toLocaleString()}</h3>
               </div>
-              <div className="h-10 w-10 bg-emerald-50 rounded-lg flex items-center justify-center">
-                <DollarSign className="h-5 w-5 text-emerald-600" />
+              <div className="h-10 w-10 bg-[#009966]/10 rounded-xl flex items-center justify-center border border-[#009966]/20">
+                <DollarSign className="h-5 w-5 text-[#009966]" />
               </div>
             </div>
 
             <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
               <div>
                 <span className="text-xxs font-bold text-slate-400 uppercase tracking-wider">Completed Sessions</span>
-                <h3 className="text-xl font-bold text-blue-650 mt-1">{report.summary.completedCount} plays</h3>
+                <h3 className="text-xl font-bold text-[#D94949] mt-1">{report.summary.completedCount} plays</h3>
               </div>
-              <div className="h-10 w-10 bg-blue-50 rounded-lg flex items-center justify-center">
-                <TrendingUp className="h-5 w-5 text-blue-655" />
+              <div className="h-10 w-10 bg-[#D94949]/10 rounded-xl flex items-center justify-center border border-[#D94949]/20">
+                <TrendingUp className="h-5 w-5 text-[#D94949]" />
               </div>
             </div>
 
             <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
               <div>
                 <span className="text-xxs font-bold text-slate-400 uppercase tracking-wider">Avg Playtime</span>
-                <h3 className="text-xl font-bold text-sky-600 mt-1">{report.summary.averageSessionTime} mins</h3>
+                <h3 className="text-xl font-bold text-amber-600 mt-1">{report.summary.averageSessionTime} mins</h3>
               </div>
-              <div className="h-10 w-10 bg-sky-50 rounded-lg flex items-center justify-center">
-                <Clock className="h-5 w-5 text-sky-600" />
+              <div className="h-10 w-10 bg-amber-50 rounded-xl flex items-center justify-center border border-amber-100">
+                <Clock className="h-5 w-5 text-amber-600" />
               </div>
             </div>
           </div>
@@ -192,7 +192,7 @@ export default function ReportsAnalytics() {
           {/* 1. Game Zone Utilization list */}
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden p-6 space-y-4">
             <h3 className="font-bold text-slate-800 text-sm flex items-center gap-1.5 border-b border-slate-100 pb-3">
-              <PieChart className="h-4.5 w-4.5 text-blue-650" />
+              <PieChart className="h-4.5 w-4.5 text-[#D94949]" />
               <span>Game Zone Occupancy & Sales</span>
             </h3>
             <div className="space-y-4 pt-1">
@@ -202,13 +202,13 @@ export default function ReportsAnalytics() {
                 report?.gameUtilization.map((game) => (
                   <div key={game.name} className="space-y-1.5 text-xs">
                     <div className="flex justify-between items-center text-slate-700">
-                      <span className="font-semibold">{game.name}</span>
-                      <span className="text-slate-450">{game.count} plays (₹{game.revenue.toLocaleString()})</span>
+                      <span className="font-semibold text-slate-800">{game.name}</span>
+                      <span className="text-slate-500">{game.count} plays (₹{game.revenue.toLocaleString()})</span>
                     </div>
                     {/* Visual Progress Bar */}
                     <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
                       <div 
-                        className="bg-blue-600 h-full rounded-full" 
+                        className="bg-[#D94949] h-full rounded-full transition-all duration-300" 
                         style={{ width: `${Math.min(100, (game.count / (report.summary.completedCount || 1)) * 100)}%` }}
                       ></div>
                     </div>
@@ -221,7 +221,7 @@ export default function ReportsAnalytics() {
           {/* 2. Peak Hours Analysis */}
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden p-6 space-y-4">
             <h3 className="font-bold text-slate-800 text-sm flex items-center gap-1.5 border-b border-slate-100 pb-3">
-              <Users className="h-4.5 w-4.5 text-blue-650" />
+              <Users className="h-4.5 w-4.5 text-[#D94949]" />
               <span>Hourly Visitor Traffic (Peak Times)</span>
             </h3>
             <div className="space-y-3 pt-1">
@@ -230,14 +230,14 @@ export default function ReportsAnalytics() {
               ) : (
                 report?.peakHours.map((h) => (
                   <div key={h.hour} className="space-y-1 text-xs">
-                    <div className="flex justify-between text-slate-655 font-medium">
-                      <span>{h.hour}</span>
-                      <span>{h.count} check-ins</span>
+                    <div className="flex justify-between text-slate-600 font-medium">
+                      <span className="text-slate-800 font-semibold">{h.hour}</span>
+                      <span className="text-slate-500">{h.count} check-ins</span>
                     </div>
                     {/* Traffic Bar */}
                     <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
                       <div
-                        className="bg-sky-500 h-full rounded-full"
+                        className="bg-[#D94949] h-full rounded-full transition-all duration-300"
                         style={{ width: `${Math.min(100, (h.count / maxVisitsHour) * 100)}%` }}
                       />
                     </div>
@@ -250,13 +250,13 @@ export default function ReportsAnalytics() {
           {/* 3. Daily Transactions logs */}
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden p-6 lg:col-span-2 space-y-4">
             <h3 className="font-bold text-slate-800 text-sm flex items-center gap-1.5 border-b border-slate-100 pb-3">
-              <Calendar className="h-4.5 w-4.5 text-blue-650" />
+              <Calendar className="h-4.5 w-4.5 text-[#D94949]" />
               <span>Full Range Session Log Summary</span>
             </h3>
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
-                  <tr className="border-b border-slate-200 text-slate-455 font-bold uppercase tracking-wider text-xxs bg-slate-50/50">
+                  <tr className="border-b border-slate-200 text-slate-500 font-bold uppercase tracking-wider text-xxs bg-slate-50/70">
                     <th className="px-4 py-2.5">Session ID</th>
                     <th className="px-4 py-2.5">Customer</th>
                     <th className="px-4 py-2.5">Game Zone</th>
@@ -265,7 +265,7 @@ export default function ReportsAnalytics() {
                     <th className="px-4 py-2.5 text-right">Charged</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 text-slate-650">
+                <tbody className="divide-y divide-slate-100 text-slate-600">
                   {report?.sessionsList.length === 0 ? (
                     <tr>
                       <td colSpan={6} className="px-4 py-6 text-center text-slate-400">
@@ -274,16 +274,16 @@ export default function ReportsAnalytics() {
                     </tr>
                   ) : (
                     report?.sessionsList.map((s) => (
-                      <tr key={s.id}>
+                      <tr key={s.id} className="hover:bg-slate-50/50 transition-colors">
                         <td className="px-4 py-3 font-bold text-slate-800">#{s.sessionId}</td>
-                        <td className="px-4 py-3 font-semibold text-slate-850">{s.customerName}</td>
+                        <td className="px-4 py-3 font-semibold text-slate-800">{s.customerName}</td>
                         <td className="px-4 py-3 font-medium text-slate-700">{s.gameName}</td>
                         <td className="px-4 py-3">{new Date(s.entryTime).toLocaleDateString()}</td>
                         <td className="px-4 py-3">
                           <span className={`px-2 py-0.5 rounded text-xxs font-bold uppercase ${
                             s.status === 'ACTIVE'
-                              ? 'bg-blue-50 text-blue-755'
-                              : 'bg-emerald-50 text-emerald-755'
+                              ? 'bg-[#D94949]/10 text-[#D94949] border border-[#D94949]/20'
+                              : 'bg-[#009966]/10 text-[#009966] border border-[#009966]/20'
                           }`}>
                             {s.status}
                           </span>
@@ -301,3 +301,4 @@ export default function ReportsAnalytics() {
     </div>
   );
 }
+

@@ -6,16 +6,15 @@ import api from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
 import { useRouter } from 'next/navigation';
 import {
-  Settings,
-  Plus,
-  Trash2,
-  Gamepad2,
-  DollarSign,
-  Clock,
-  Sparkles,
-  AlertTriangle,
-  FolderOpen
-} from 'lucide-react';
+  FaGear,
+  FaPlus,
+  FaTrashCan,
+  FaGamepad,
+  FaIndianRupeeSign,
+  FaClock,
+  FaLayerGroup,
+  FaXmark
+} from 'react-icons/fa6';
 
 interface Game {
   id: string;
@@ -117,7 +116,7 @@ export default function GameSettings() {
   if (gamesLoading || pricingLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-650"></div>
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#D94949]"></div>
       </div>
     );
   }
@@ -127,8 +126,10 @@ export default function GameSettings() {
       {/* Header Banner */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200 shadow-xs">
         <div>
-          <h1 className="text-xl font-bold text-slate-800 flex items-center gap-2">
-            <Settings className="h-5.5 w-5.5 text-blue-650" />
+          <h1 className="text-xl font-bold text-slate-800 flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-[#D94949]/10 text-[#D94949] flex items-center justify-center">
+              <FaGear className="h-4.5 w-4.5" />
+            </div>
             <span>Pricing & Game Settings</span>
           </h1>
           <p className="text-xs text-slate-500 mt-1">
@@ -141,25 +142,25 @@ export default function GameSettings() {
         {/* Left Column: Game Catalog Master */}
         <div className="lg:col-span-5 bg-white border border-slate-200 rounded-2xl shadow-xs p-6 space-y-4">
           <div className="flex justify-between items-center border-b border-slate-100 pb-3">
-            <h3 className="font-bold text-slate-800 text-sm flex items-center gap-1.5">
-              <Gamepad2 className="h-4.5 w-4.5 text-blue-650" />
+            <h3 className="font-bold text-slate-800 text-sm flex items-center gap-2">
+              <FaGamepad className="h-4 w-4 text-[#D94949]" />
               <span>Game Catalog Master</span>
             </h3>
             <button
               onClick={() => setShowGameModal(true)}
-              className="p-1 hover:bg-blue-50 text-blue-600 rounded border border-blue-100 flex items-center gap-1 text-xxs font-bold transition-all"
+              className="px-3 py-1.5 bg-[#D94949]/10 hover:bg-[#D94949] text-[#D94949] hover:text-white rounded-lg border border-[#D94949]/20 flex items-center gap-1.5 text-xs font-bold transition-all cursor-pointer"
             >
-              <Plus className="h-3.5 w-3.5" />
+              <FaPlus className="h-3 w-3" />
               <span>Add Game</span>
             </button>
           </div>
 
-          <div className="space-y-3.5 pt-1">
+          <div className="space-y-3 pt-1">
             {games?.length === 0 ? (
               <div className="text-center py-6 text-slate-400 text-xs">No games defined.</div>
             ) : (
               games?.map((game) => (
-                <div key={game.id} className="flex justify-between items-center p-3 bg-slate-50 border border-slate-200 rounded-xl">
+                <div key={game.id} className="flex justify-between items-center p-3 bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100/60 transition-colors">
                   <div className="max-w-[70%]">
                     <div className="font-bold text-xs text-slate-800">{game.name}</div>
                     {game.description && <p className="text-slate-400 text-xxs truncate mt-0.5">{game.description}</p>}
@@ -170,9 +171,9 @@ export default function GameSettings() {
                         deleteGameMutation.mutate(game.id);
                       }
                     }}
-                    className="p-1.5 hover:bg-rose-50 text-slate-400 hover:text-rose-600 rounded-lg transition-colors border border-transparent hover:border-rose-100"
+                    className="p-1.5 hover:bg-red-50 text-slate-400 hover:text-[#D94949] rounded-lg transition-colors border border-transparent hover:border-red-100 cursor-pointer"
                   >
-                    <Trash2 className="h-4 w-4" />
+                    <FaTrashCan className="h-3.5 w-3.5" />
                   </button>
                 </div>
               ))
@@ -183,16 +184,16 @@ export default function GameSettings() {
         {/* Right Column: Pricing Master */}
         <div className="lg:col-span-7 bg-white border border-slate-200 rounded-2xl shadow-xs p-6 space-y-4">
           <div className="flex justify-between items-center border-b border-slate-100 pb-3">
-            <h3 className="font-bold text-slate-800 text-sm flex items-center gap-1.5">
-              <DollarSign className="h-4.5 w-4.5 text-blue-650" />
+            <h3 className="font-bold text-slate-800 text-sm flex items-center gap-2">
+              <FaLayerGroup className="h-4 w-4 text-[#009966]" />
               <span>Pricing & Package Master</span>
             </h3>
             <button
               onClick={() => setShowPricingModal(true)}
-              className="p-1 hover:bg-blue-50 text-blue-600 rounded border border-blue-100 flex items-center gap-1 text-xxs font-bold transition-all"
+              className="px-3 py-1.5 bg-[#009966]/10 hover:bg-[#009966] text-[#009966] hover:text-white rounded-lg border border-[#009966]/20 flex items-center gap-1.5 text-xs font-bold transition-all cursor-pointer disabled:opacity-50"
               disabled={!games || games.length === 0}
             >
-              <Plus className="h-3.5 w-3.5" />
+              <FaPlus className="h-3 w-3" />
               <span>Configure Rate</span>
             </button>
           </div>
@@ -200,7 +201,7 @@ export default function GameSettings() {
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse text-xs">
               <thead>
-                <tr className="border-b border-slate-200 text-slate-455 font-bold uppercase tracking-wider text-xxs bg-slate-50/50">
+                <tr className="border-b border-slate-200 text-slate-500 font-bold uppercase tracking-wider text-xxs bg-slate-50/70">
                   <th className="px-4 py-2.5 rounded-l-lg">Game</th>
                   <th className="px-4 py-2.5">Package Title</th>
                   <th className="px-4 py-2.5">Duration</th>
@@ -208,7 +209,7 @@ export default function GameSettings() {
                   <th className="px-4 py-2.5 text-right rounded-r-lg">Action</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 text-slate-650">
+              <tbody className="divide-y divide-slate-100 text-slate-600">
                 {pricings?.length === 0 ? (
                   <tr>
                     <td colSpan={5} className="px-4 py-6 text-center text-slate-400">
@@ -217,20 +218,22 @@ export default function GameSettings() {
                   </tr>
                 ) : (
                   pricings?.map((pr) => (
-                    <tr key={pr.id} className="hover:bg-slate-50/40">
+                    <tr key={pr.id} className="hover:bg-slate-50/40 transition-colors">
                       <td className="px-4 py-3 font-semibold text-slate-800">{pr.game.name}</td>
                       <td className="px-4 py-3 font-medium text-slate-700">{pr.name}</td>
                       <td className="px-4 py-3 text-slate-500">
                         {pr.duration > 0 ? (
-                          <span className="flex items-center gap-1">
-                            <Clock className="h-3.5 w-3.5 text-slate-400" />
+                          <span className="flex items-center gap-1.5">
+                            <FaClock className="h-3 w-3 text-slate-400" />
                             <span>{pr.duration} mins</span>
                           </span>
                         ) : (
-                          <span className="text-xxs px-2 py-0.5 bg-blue-50 text-blue-600 font-semibold rounded">Flat Pkg</span>
+                          <span className="text-xxs px-2 py-0.5 bg-[#009966]/10 text-[#009966] font-bold rounded border border-[#009966]/20">Flat Pkg</span>
                         )}
                       </td>
-                      <td className="px-4 py-3 font-bold text-slate-800">₹{Number(pr.price).toLocaleString()}</td>
+                      <td className="px-4 py-3 font-bold text-slate-900">
+                        <span className="text-[#009966] font-extrabold">₹{Number(pr.price).toLocaleString()}</span>
+                      </td>
                       <td className="px-4 py-3 text-right">
                         <button
                           onClick={() => {
@@ -238,9 +241,9 @@ export default function GameSettings() {
                               deletePricingMutation.mutate(pr.id);
                             }
                           }}
-                          className="p-1 hover:bg-rose-50 text-slate-400 hover:text-rose-600 rounded transition-colors"
+                          className="p-1.5 hover:bg-red-50 text-slate-400 hover:text-[#D94949] rounded-lg transition-colors cursor-pointer"
                         >
-                          <Trash2 className="h-3.5 w-3.5" />
+                          <FaTrashCan className="h-3.5 w-3.5" />
                         </button>
                       </td>
                     </tr>
@@ -256,9 +259,11 @@ export default function GameSettings() {
       {showGameModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
           <div className="bg-white rounded-2xl border border-slate-200 shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-100">
-            <div className="px-6 py-4 border-b border-slate-200 flex justify-between items-center bg-slate-50/50">
+            <div className="px-6 py-4 border-b border-slate-200 flex justify-between items-center bg-slate-50/70">
               <h4 className="font-bold text-slate-800 text-xs uppercase tracking-wider">Create Catalog Game</h4>
-              <button onClick={() => setShowGameModal(false)} className="text-slate-400 hover:text-slate-650 font-bold">×</button>
+              <button onClick={() => setShowGameModal(false)} className="text-slate-400 hover:text-slate-600 font-bold text-base leading-none cursor-pointer">
+                <FaXmark className="h-4 w-4" />
+              </button>
             </div>
             <form onSubmit={handleCreateGame} className="p-6 space-y-4 text-xs">
               <div className="space-y-1.5">
@@ -266,10 +271,10 @@ export default function GameSettings() {
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Trampoline Park, VR Zone"
+                  placeholder="e.g. Trampoline Park, Coin Games"
                   value={newGame.name}
                   onChange={(e) => setNewGame({ ...newGame, name: e.target.value })}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 font-medium outline-none focus:border-blue-500 focus:bg-white transition-all text-slate-850"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 font-medium outline-none focus:border-[#D94949] focus:bg-white focus:ring-2 focus:ring-[#D94949]/20 transition-all text-slate-800"
                 />
               </div>
 
@@ -279,7 +284,7 @@ export default function GameSettings() {
                   placeholder="Safety regulations, guest rules or details..."
                   value={newGame.description}
                   onChange={(e) => setNewGame({ ...newGame, description: e.target.value })}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 font-medium outline-none focus:border-blue-500 focus:bg-white transition-all text-slate-850 h-20 resize-none"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 font-medium outline-none focus:border-[#D94949] focus:bg-white focus:ring-2 focus:ring-[#D94949]/20 transition-all text-slate-800 h-20 resize-none"
                 />
               </div>
 
@@ -287,14 +292,14 @@ export default function GameSettings() {
                 <button
                   type="submit"
                   disabled={createGameMutation.isPending}
-                  className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl shadow-xs transition-all"
+                  className="flex-1 py-2.5 bg-[#D94949] hover:bg-[#C53B3B] text-white font-bold rounded-xl shadow-xs transition-all cursor-pointer disabled:opacity-50"
                 >
                   {createGameMutation.isPending ? 'Saving...' : 'Add Game'}
                 </button>
                 <button
                   type="button"
                   onClick={() => setShowGameModal(false)}
-                  className="px-4 py-2.5 border border-slate-250 hover:bg-slate-50 text-slate-650 font-semibold rounded-xl"
+                  className="px-4 py-2.5 border border-slate-250 hover:bg-slate-50 text-slate-600 font-semibold rounded-xl cursor-pointer"
                 >
                   Cancel
                 </button>
@@ -308,9 +313,11 @@ export default function GameSettings() {
       {showPricingModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
           <div className="bg-white rounded-2xl border border-slate-200 shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-100">
-            <div className="px-6 py-4 border-b border-slate-200 flex justify-between items-center bg-slate-50/50">
+            <div className="px-6 py-4 border-b border-slate-200 flex justify-between items-center bg-slate-50/70">
               <h4 className="font-bold text-slate-800 text-xs uppercase tracking-wider">Configure Pricing Package</h4>
-              <button onClick={() => setShowPricingModal(false)} className="text-slate-400 hover:text-slate-650 font-bold">×</button>
+              <button onClick={() => setShowPricingModal(false)} className="text-slate-400 hover:text-slate-600 font-bold text-base leading-none cursor-pointer">
+                <FaXmark className="h-4 w-4" />
+              </button>
             </div>
             <form onSubmit={handleCreatePricing} className="p-6 space-y-4 text-xs">
               <div className="space-y-1.5">
@@ -319,7 +326,7 @@ export default function GameSettings() {
                   required
                   value={newPricing.gameId}
                   onChange={(e) => setNewPricing({ ...newPricing, gameId: e.target.value })}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 font-semibold outline-none focus:border-blue-500 focus:bg-white text-slate-850"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 font-semibold outline-none focus:border-[#009966] focus:bg-white focus:ring-2 focus:ring-[#009966]/20 text-slate-800 transition-all cursor-pointer"
                 >
                   <option value="">-- Choose game --</option>
                   {games?.map((g) => (
@@ -336,7 +343,7 @@ export default function GameSettings() {
                   placeholder="e.g. 30 Minutes, ₹100 Coin Pack, Unlimited Pass"
                   value={newPricing.name}
                   onChange={(e) => setNewPricing({ ...newPricing, name: e.target.value })}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 font-medium outline-none focus:border-blue-500 focus:bg-white transition-all text-slate-850"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 font-medium outline-none focus:border-[#009966] focus:bg-white focus:ring-2 focus:ring-[#009966]/20 transition-all text-slate-800"
                 />
               </div>
 
@@ -350,7 +357,7 @@ export default function GameSettings() {
                     value={newPricing.duration}
                     onChange={(e) => setNewPricing({ ...newPricing, duration: Number(e.target.value) })}
                     placeholder="0 for flat/unlimited"
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 font-medium outline-none focus:border-blue-500 focus:bg-white transition-all text-slate-850"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 font-medium outline-none focus:border-[#009966] focus:bg-white focus:ring-2 focus:ring-[#009966]/20 transition-all text-slate-800"
                   />
                   <span className="text-[10px] text-slate-400">Set 0 for flat packages</span>
                 </div>
@@ -364,7 +371,7 @@ export default function GameSettings() {
                     value={newPricing.price}
                     onChange={(e) => setNewPricing({ ...newPricing, price: Number(e.target.value) })}
                     placeholder="Price in INR"
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 font-bold outline-none focus:border-blue-500 focus:bg-white transition-all text-slate-850"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 font-bold outline-none focus:border-[#009966] focus:bg-white focus:ring-2 focus:ring-[#009966]/20 transition-all text-slate-800"
                   />
                 </div>
               </div>
@@ -373,14 +380,14 @@ export default function GameSettings() {
                 <button
                   type="submit"
                   disabled={createPricingMutation.isPending}
-                  className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl shadow-xs transition-all"
+                  className="flex-1 py-2.5 bg-[#009966] hover:bg-[#008055] text-white font-bold rounded-xl shadow-xs transition-all cursor-pointer disabled:opacity-50"
                 >
                   {createPricingMutation.isPending ? 'Saving...' : 'Add Pricing'}
                 </button>
                 <button
                   type="button"
                   onClick={() => setShowPricingModal(false)}
-                  className="px-4 py-2.5 border border-slate-250 hover:bg-slate-50 text-slate-650 font-semibold rounded-xl"
+                  className="px-4 py-2.5 border border-slate-250 hover:bg-slate-50 text-slate-600 font-semibold rounded-xl cursor-pointer"
                 >
                   Cancel
                 </button>
@@ -392,3 +399,5 @@ export default function GameSettings() {
     </div>
   );
 }
+
+

@@ -63,7 +63,6 @@ interface ExecutiveSummaryData {
     beverageSales: number;
     dessertSales: number;
     gamesRevenue: number;
-    partyHallRevenue: number;
     otherCategories: CategorySale[];
   };
   topSellingCategories: TopCategory[];
@@ -193,7 +192,6 @@ export default function ExecutiveSummaryPage() {
     { name: 'Beverage Sales', value: categoryWiseSales.beverageSales, icon: GlassWater, color: 'text-cyan-500 bg-cyan-50' },
     { name: 'Dessert Sales', value: categoryWiseSales.dessertSales, icon: Cake, color: 'text-pink-500 bg-pink-50' },
     { name: 'Games Revenue', value: categoryWiseSales.gamesRevenue, icon: Gamepad, color: 'text-purple-500 bg-purple-50' },
-    { name: 'Party Hall Revenue', value: categoryWiseSales.partyHallRevenue, icon: Sparkles, color: 'text-amber-500 bg-amber-50' },
     ...categoryWiseSales.otherCategories.map((oc) => ({
       name: `${oc.category} Sales`,
       value: oc.revenue,
@@ -225,7 +223,7 @@ export default function ExecutiveSummaryPage() {
             <span>Executive Business Summary</span>
           </h1>
           <p className="text-xs text-slate-500 mt-0.5">
-            Overview of today's consolidated operations including food POS, arcade gaming, and banquet hall collections.
+            Overview of today's consolidated operations including food POS and arcade gaming collections.
           </p>
         </div>
         <div className="bg-slate-100 text-slate-805 text-xxs font-bold px-3 py-1.5 rounded-lg border border-slate-200">

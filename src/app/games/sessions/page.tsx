@@ -26,7 +26,8 @@ interface Session {
   sessionId: number;
   customerId: string;
   gameId: string;
-  pricingId: string;
+  pricingId?: string | null;
+  duration?: number | null;
   guestCount: number;
   entryTime: string;
   exitTime: string | null;
@@ -46,11 +47,11 @@ interface Session {
   game: {
     name: string;
   };
-  pricing: {
+  pricing?: {
     name: string;
     duration: number;
-    price: string;
-  };
+    price: string | number;
+  } | null;
 }
 
 export default function GameSessions() {
@@ -130,7 +131,7 @@ export default function GameSessions() {
     const entry = new Date(s.entryTime);
     const exit = s.exitTime ? new Date(s.exitTime) : now;
     const elapsed = Math.max(1, Math.round((exit.getTime() - entry.getTime()) / 1000 / 60));
-    const limit = s.pricing.duration;
+    const limit = s.pricing?.duration || s.duration || 30;
     if (limit > 0 && elapsed > limit) {
       return elapsed - limit;
     }
@@ -141,23 +142,17 @@ export default function GameSessions() {
     setSelectedSessionId(s.id);
     // calculate default overtime charges
     const overtime = getOvertimeMinutes(s);
+    const pDur = s.pricing?.duration || s.duration || 30;
+    const pPrice = s.pricing?.price ? Number(s.pricing.price) : Number(s.originalPrice);
     let defaultExtra = 0;
-    if (overtime > 5 && s.pricing.duration > 0) {
-      const baseRate = Number(s.pricing.price) / s.pricing.duration;
+    if (overtime > 5 && pDur > 0) {
+      const baseRate = pPrice / pDur;
       defaultExtra = Math.round(baseRate * overtime);
     }
     
     setExtraCharges(defaultExtra);
     setClosingDiscount(0);
-    
-    // grandTotal estimate
-    const subtotal = Number(s.originalPrice) - Number(s.discount) + defaultExtra;
-    const gstRate = Math.round(subtotal * 0.18);
-    const netTotal = subtotal + gstRate;
-    
-    // paid advance estimate
-    const advancePaid = netTotal; // in typical setups, we assume advance. Let's load details properly
-    setAmountPaid(0); // will be loaded in detail slider if needed
+    setAmountPaid(0);
     setIsCheckoutOpen(true);
   };
 
@@ -165,9 +160,7 @@ export default function GameSessions() {
   const activeSessionTarget = activeSessions?.find((s) => s.id === selectedSessionId);
   const checkoutOriginalPrice = activeSessionTarget ? Number(activeSessionTarget.originalPrice) : 0;
   const checkoutPrevDiscount = activeSessionTarget ? Number(activeSessionTarget.discount) : 0;
-  const checkoutSubtotal = Math.max(0, checkoutOriginalPrice - checkoutPrevDiscount - closingDiscount + extraCharges);
-  const checkoutGst = Math.round(checkoutSubtotal * 0.18);
-  const checkoutGrandTotal = checkoutSubtotal + checkoutGst;
+  const checkoutGrandTotal = Math.max(0, checkoutOriginalPrice - checkoutPrevDiscount - closingDiscount + extraCharges);
 
   const handleCheckoutSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -195,23 +188,27 @@ export default function GameSessions() {
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
       {/* Header Banner */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-        <div>
-          <h1 className="text-xl font-bold text-slate-800 flex items-center gap-2">
-            <ClipboardList className="h-5.5 w-5.5 text-blue-600" />
-            <span>Games Sessions Directory</span>
-          </h1>
-          <p className="text-xs text-slate-500 mt-1">
-            Audit and track live active player sessions, print invoices, and checkout completed player sessions.
-          </p>
+      <div className="bg-white border border-slate-200/80 rounded-2xl p-4 sm:p-5 shadow-xs flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-rose-50 border border-rose-100/80 text-[#D94949] flex items-center justify-center font-bold shrink-0">
+            <ClipboardList className="h-5 w-5" />
+          </div>
+          <div>
+            <h1 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight leading-tight">
+              Games Sessions Directory
+            </h1>
+            <p className="text-xs text-slate-500 font-medium mt-0.5">
+              Track live player sessions, monitor active durations, and process checkout settlements.
+            </p>
+          </div>
         </div>
 
         {/* Tab selector */}
-        <div className="flex bg-slate-50 border border-slate-200 rounded-xl p-1 shadow-xs shrink-0 self-start md:self-auto">
+        <div className="flex bg-slate-100/90 border border-slate-200/80 rounded-xl p-1 shadow-2xs shrink-0 self-start md:self-auto">
           <button
             onClick={() => handleTabChange('active')}
-            className={`px-4 py-2 text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5 ${
-              activeTab === 'active' ? 'bg-white text-blue-650 shadow-xs border border-slate-150' : 'text-slate-500 hover:text-slate-800'
+            className={`px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
+              activeTab === 'active' ? 'bg-[#009966] text-white shadow-2xs' : 'text-slate-600 hover:text-slate-900'
             }`}
           >
             <Play className="h-3.5 w-3.5 fill-current" />
@@ -219,8 +216,8 @@ export default function GameSessions() {
           </button>
           <button
             onClick={() => handleTabChange('completed')}
-            className={`px-4 py-2 text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5 ${
-              activeTab === 'completed' ? 'bg-white text-blue-655 shadow-xs border border-slate-150' : 'text-slate-500 hover:text-slate-800'
+            className={`px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
+              activeTab === 'completed' ? 'bg-[#D94949] text-white shadow-2xs' : 'text-slate-600 hover:text-slate-900'
             }`}
           >
             <CheckCircle className="h-3.5 w-3.5" />
@@ -230,14 +227,14 @@ export default function GameSessions() {
       </div>
 
       {/* Filter and search */}
-      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex items-center gap-3">
-        <Search className="h-5 w-5 text-slate-400" />
+      <div className="bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-xs flex items-center gap-3">
+        <Search className="h-4.5 w-4.5 text-slate-400 shrink-0 ml-1" />
         <input
           type="text"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           placeholder="Search by session #, customer name, mobile, game zone..."
-          className="flex-1 bg-transparent text-xs text-slate-800 outline-none placeholder-slate-400"
+          className="flex-1 bg-transparent text-xs sm:text-sm font-medium text-slate-900 outline-none placeholder:text-slate-400"
         />
       </div>
 
@@ -245,7 +242,7 @@ export default function GameSessions() {
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         {isLoading ? (
           <div className="flex justify-center items-center py-12">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#D94949]"></div>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -280,7 +277,7 @@ export default function GameSessions() {
                           <div className="text-xxs text-slate-400">{s.customer.mobile}</div>
                         </td>
                         <td className="px-5 py-4 font-medium text-slate-700">{s.game.name}</td>
-                        <td className="px-5 py-4">{s.pricing.name}</td>
+                        <td className="px-5 py-4">{s.pricing?.name || `${s.duration || 30} mins`}</td>
                         <td className="px-5 py-4">
                           <div>In: {new Date(s.entryTime).toLocaleTimeString(undefined, { timeStyle: 'short' })}</div>
                           {s.exitTime && <div>Out: {new Date(s.exitTime).toLocaleTimeString(undefined, { timeStyle: 'short' })}</div>}
@@ -298,7 +295,7 @@ export default function GameSessions() {
                               setSelectedSessionId(s.id);
                               setIsDetailsOpen(true);
                             }}
-                            className="p-1.5 hover:bg-slate-100 text-slate-450 hover:text-slate-700 rounded transition-colors"
+                            className="p-1.5 hover:bg-slate-100 text-slate-450 hover:text-slate-700 rounded transition-colors cursor-pointer"
                             title="Inspect Details"
                           >
                             <Eye className="h-4 w-4" />
@@ -306,7 +303,7 @@ export default function GameSessions() {
                           {s.status === 'ACTIVE' && (
                             <button
                               onClick={() => openCheckout(s)}
-                              className="px-2.5 py-1 bg-blue-50 text-blue-650 hover:bg-blue-100 rounded border border-blue-100 font-bold text-xxs transition-colors"
+                              className="px-3 py-1 bg-[#D94949]/10 text-[#D94949] hover:bg-[#D94949]/20 rounded-lg border border-[#D94949]/20 font-bold text-xxs transition-colors cursor-pointer"
                             >
                               Checkout
                             </button>
@@ -353,7 +350,7 @@ export default function GameSessions() {
                 <div className="space-y-1">
                   <div className="text-xxs font-bold text-slate-400 uppercase tracking-wider">Session Details</div>
                   <div className="font-semibold text-slate-700">Game: {sessionDetails.game.name}</div>
-                  <div>Package: {sessionDetails.pricing.name}</div>
+                  <div>Package: {sessionDetails.pricing?.name || `${sessionDetails.duration || 30} mins`}</div>
                 </div>
               </div>
 
@@ -376,7 +373,7 @@ export default function GameSessions() {
                     <span className="font-semibold">₹{sessionDetails.originalPrice.toLocaleString()}</span>
                   </div>
                   {sessionDetails.discount > 0 && (
-                    <div className="flex justify-between text-rose-600">
+                    <div className="flex justify-between text-[#009966]">
                       <span>Discount Overrides:</span>
                       <span>-₹{sessionDetails.discount.toLocaleString()}</span>
                     </div>
@@ -387,10 +384,6 @@ export default function GameSessions() {
                       <span>+₹{sessionDetails.extraCharges.toLocaleString()}</span>
                     </div>
                   )}
-                  <div className="flex justify-between">
-                    <span>GST (18%):</span>
-                    <span>+₹{sessionDetails.gst.toLocaleString()}</span>
-                  </div>
                   <div className="flex justify-between font-bold text-slate-800 border-t border-slate-150 pt-1.5">
                     <span>Net Grand Total:</span>
                     <span>₹{sessionDetails.grandTotal.toLocaleString()}</span>
@@ -420,7 +413,7 @@ export default function GameSessions() {
                   setIsDetailsOpen(false);
                   setSelectedSessionId(null);
                 }}
-                className="px-4 py-2 border border-slate-250 text-slate-650 hover:bg-slate-100 font-semibold text-xs rounded-xl"
+                className="px-4 py-2 border border-slate-250 text-slate-650 hover:bg-slate-100 font-semibold text-xs rounded-xl cursor-pointer"
               >
                 Close Inspector
               </button>
@@ -440,7 +433,7 @@ export default function GameSessions() {
                   setIsCheckoutOpen(false);
                   setSelectedSessionId(null);
                 }}
-                className="text-slate-400 hover:text-slate-650 font-bold"
+                className="text-slate-400 hover:text-slate-650 font-bold cursor-pointer"
               >
                 ×
               </button>
@@ -448,11 +441,11 @@ export default function GameSessions() {
 
             <form onSubmit={handleCheckoutSubmit} className="p-6 space-y-4 text-xs overflow-y-auto">
               {activeSessionTarget && (
-                <div className="p-4 bg-blue-50/50 border border-blue-100 rounded-xl space-y-2">
-                  <div className="font-bold text-blue-900">{activeSessionTarget.customer.name}</div>
-                  <div className="grid grid-cols-2 gap-2 text-xxs text-blue-955/75">
+                <div className="p-4 bg-[#D94949]/5 border border-[#D94949]/15 rounded-xl space-y-2">
+                  <div className="font-bold text-[#D94949]">{activeSessionTarget.customer.name}</div>
+                  <div className="grid grid-cols-2 gap-2 text-xxs text-slate-700">
                     <div>Elapsed Playtime: <span className="font-bold text-slate-800">{getDurationString(activeSessionTarget.entryTime, null)}</span></div>
-                    <div>Package Limit: <span className="font-semibold text-slate-700">{activeSessionTarget.pricing.duration}m</span></div>
+                    <div>Package Limit: <span className="font-semibold text-slate-700">{activeSessionTarget.pricing?.duration || activeSessionTarget.duration || 30}m</span></div>
                   </div>
                 </div>
               )}
@@ -466,7 +459,7 @@ export default function GameSessions() {
                     min="0"
                     value={extraCharges}
                     onChange={(e) => setExtraCharges(Number(e.target.value))}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 font-bold outline-none focus:border-blue-500 text-slate-850"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 font-bold outline-none focus:border-[#D94949] text-slate-850"
                   />
                 </div>
 
@@ -477,7 +470,7 @@ export default function GameSessions() {
                     min="0"
                     value={closingDiscount}
                     onChange={(e) => setClosingDiscount(Number(e.target.value))}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 font-bold outline-none focus:border-blue-500 text-slate-850"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 font-bold outline-none focus:border-[#D94949] text-slate-850"
                   />
                 </div>
               </div>
@@ -490,7 +483,7 @@ export default function GameSessions() {
                 </div>
                 <div className="flex justify-between items-center font-bold text-slate-800 border-t border-slate-200 pt-2">
                   <span>Balance Due:</span>
-                  <span className="text-blue-650">₹{checkoutGrandTotal.toLocaleString()}</span>
+                  <span className="text-[#D94949]">₹{checkoutGrandTotal.toLocaleString()}</span>
                 </div>
               </div>
 
@@ -501,7 +494,7 @@ export default function GameSessions() {
                   required
                   value={paymentMethod}
                   onChange={(e) => setPaymentMethod(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 font-semibold outline-none focus:border-blue-500 text-slate-850"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 font-semibold outline-none focus:border-[#D94949] text-slate-850"
                 >
                   <option value="CASH">Cash Settlement</option>
                   <option value="UPI">UPI Digital Payment</option>
@@ -518,7 +511,7 @@ export default function GameSessions() {
                   value={amountPaid}
                   onChange={(e) => setAmountPaid(Number(e.target.value))}
                   placeholder="Amount collected"
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 font-bold outline-none focus:border-blue-500 text-slate-850"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 font-bold outline-none focus:border-[#D94949] text-slate-850"
                 />
               </div>
 
@@ -526,7 +519,7 @@ export default function GameSessions() {
                 <button
                   type="submit"
                   disabled={checkoutMutation.isPending}
-                  className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl shadow-xs transition-all"
+                  className="flex-1 py-2.5 bg-[#D94949] hover:bg-[#C53B3B] text-white font-bold rounded-xl shadow-xs transition-all cursor-pointer"
                 >
                   {checkoutMutation.isPending ? 'Processing...' : 'Complete Checkout'}
                 </button>
@@ -536,7 +529,7 @@ export default function GameSessions() {
                     setIsCheckoutOpen(false);
                     setSelectedSessionId(null);
                   }}
-                  className="px-4 py-2.5 border border-slate-250 hover:bg-slate-50 text-slate-650 font-semibold rounded-xl"
+                  className="px-4 py-2.5 border border-slate-250 hover:bg-slate-50 text-slate-650 font-semibold rounded-xl cursor-pointer"
                 >
                   Cancel
                 </button>

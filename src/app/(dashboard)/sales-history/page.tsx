@@ -7,7 +7,6 @@ import { PrintAgentClient } from '@/lib/printAgentClient';
 import {
   Search,
   Calendar,
-  FileText,
   DollarSign,
   Ban,
   TrendingUp,
@@ -17,15 +16,23 @@ import {
   X,
   Printer,
   Eye,
-  CheckCircle2,
-  Clock,
   Filter,
-  ArrowUpRight,
   Receipt,
   RefreshCw,
   ShoppingBag,
-  CreditCard
+  CreditCard,
+  Layers,
+  ArrowUpRight,
+  CheckCircle2,
 } from 'lucide-react';
+import {
+  PageHeader,
+  MetricCard,
+  StatusBadge,
+  EmptyState,
+  LoadingSkeleton,
+  Button,
+} from '@/components/ui';
 
 interface Bill {
   id: string;
@@ -199,7 +206,6 @@ export default function SalesHistoryPage() {
         restaurantName: 'Kyra Cafe',
         restaurantAddress: '123 Main Street, Food District',
         restaurantPhone: '9876543210',
-        gstNumber: '29AAAAA1111A1Z1',
         billNumber: order.orderNumber,
         date: new Date(order.createdAt).toLocaleDateString(),
         time: new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -210,9 +216,7 @@ export default function SalesHistoryPage() {
         items: receiptItems,
         subtotal: Number(order.subtotal || order.grandTotal),
         discount: Number(order.discountTotal || 0),
-        taxSummary: [
-          { name: 'GST', rate: 5, amount: Number(order.taxTotal || 0) }
-        ],
+        taxSummary: [],
         grandTotal: Number(order.grandTotal),
         paymentMethod: order.payments?.[0]?.method || order.paymentMethod || 'CASH',
         customerName: order.customerName && order.customerName !== 'Walk-in Customer' ? order.customerName : undefined,
@@ -239,17 +243,27 @@ export default function SalesHistoryPage() {
 
   if (isLoading) {
     return (
-      <div className="flex h-64 items-center justify-center">
-        <Loader className="h-8 w-8 animate-spin text-primary" />
+      <div className="space-y-6">
+        <LoadingSkeleton className="h-20 w-full" />
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <LoadingSkeleton className="h-28 w-full" />
+          <LoadingSkeleton className="h-28 w-full" />
+          <LoadingSkeleton className="h-28 w-full" />
+          <LoadingSkeleton className="h-28 w-full" />
+        </div>
+        <LoadingSkeleton className="h-64 w-full" />
       </div>
     );
   }
 
   if (error || !data) {
     return (
-      <div className="p-4 bg-rose-50 text-rose-700 rounded-xl border border-rose-100 flex items-center gap-3">
-        <AlertCircle className="h-5 w-5 shrink-0" />
-        <span>Failed to load sales history from server.</span>
+      <div className="p-6 bg-rose-50 text-rose-700 rounded-2xl border border-rose-150 flex items-center gap-3">
+        <AlertCircle className="h-5 w-5 shrink-0 text-rose-600" />
+        <div>
+          <h4 className="font-bold text-sm">Failed to load sales history</h4>
+          <p className="text-xs text-rose-600/80">Please check server connectivity and try again.</p>
+        </div>
       </div>
     );
   }
@@ -271,128 +285,109 @@ export default function SalesHistoryPage() {
 
   return (
     <div className="space-y-6 text-slate-700 font-sans pb-10">
-      {/* Header Bar */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-200 pb-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <h2 className="text-lg font-bold text-slate-850 tracking-tight">Sales & Billing History</h2>
-            <span className="px-2 py-0.5 bg-primary-light text-primary border border-primary/20 text-xxs font-bold rounded-full">
-              {filteredOrders.length} Orders
-            </span>
-          </div>
-          <p className="text-xxs text-slate-400 mt-0.5 font-medium">
-            Track drawer transactions, reprint receipts, inspect bill breakdowns, and process returns.
-          </p>
-        </div>
-
-        {/* Date Filter & Preset Controls */}
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="flex items-center border rounded-xl overflow-hidden bg-slate-50 border-slate-250 p-0.5 shadow-xxs">
-            {(['today', 'yesterday', 'week', 'month', 'custom'] as const).map((filter) => (
-              <button
-                key={filter}
-                type="button"
-                onClick={() => handleQuickFilter(filter)}
-                className={`px-3 py-1.5 text-xxs font-bold rounded-lg transition-all capitalize cursor-pointer ${
-                  dateFilter === filter
-                    ? 'bg-primary text-white shadow-xs'
-                    : 'text-slate-600 hover:bg-slate-200/60'
-                }`}
-              >
-                {filter === 'week' ? 'This Week' : filter === 'month' ? 'This Month' : filter}
-              </button>
-            ))}
-          </div>
-
-          {dateFilter === 'custom' && (
-            <div className="flex items-center gap-2 text-xxs font-semibold bg-white p-1 rounded-xl border border-slate-200 shadow-xxs">
-              <input
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 focus:outline-none font-medium text-slate-850"
-              />
-              <span className="text-slate-400">to</span>
-              <input
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 focus:outline-none font-medium text-slate-850"
-              />
+      {/* 1. Page Header */}
+      <PageHeader
+        title="Sales & Billing History"
+        description="Track drawer transactions, reprint receipts, inspect bill breakdowns, and process returns."
+        icon={<Receipt className="h-5 w-5" />}
+        action={
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Filter Presets */}
+            <div className="flex items-center border rounded-xl overflow-hidden bg-slate-50 border-slate-200/80 p-0.5 shadow-xxs">
+              {(['today', 'yesterday', 'week', 'month', 'custom'] as const).map((filter) => (
+                <button
+                  key={filter}
+                  type="button"
+                  onClick={() => handleQuickFilter(filter)}
+                  className={`px-3 py-1.5 text-xxs font-bold rounded-lg transition-all capitalize cursor-pointer ${
+                    dateFilter === filter
+                      ? 'bg-[#D94949] text-white shadow-xs'
+                      : 'text-slate-600 hover:bg-slate-200/60'
+                  }`}
+                >
+                  {filter === 'week' ? 'This Week' : filter === 'month' ? 'This Month' : filter}
+                </button>
+              ))}
             </div>
-          )}
 
-          <button
-            onClick={() => refetch()}
-            disabled={isRefetching}
-            className="p-2 bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-250 rounded-xl transition-colors cursor-pointer"
-            title="Refresh Data"
-          >
-            <RefreshCw className={`h-4 w-4 ${isRefetching ? 'animate-spin' : ''}`} />
-          </button>
-        </div>
-      </div>
+            {/* Custom Date Range Picker */}
+            {dateFilter === 'custom' && (
+              <div className="flex items-center gap-2 text-xxs font-semibold bg-white p-1 rounded-xl border border-slate-200 shadow-xxs">
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 focus:outline-none font-medium text-slate-800"
+                />
+                <span className="text-slate-400">to</span>
+                <input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className="bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 focus:outline-none font-medium text-slate-800"
+                />
+              </div>
+            )}
 
-      {/* Summary KPI Cards */}
+            {/* Refresh Button */}
+            <button
+              onClick={() => refetch()}
+              disabled={isRefetching}
+              className="p-2 bg-white hover:bg-slate-50 text-slate-600 border border-slate-200 rounded-xl transition-colors cursor-pointer shadow-xxs"
+              title="Refresh Data"
+            >
+              <RefreshCw className={`h-4 w-4 ${isRefetching ? 'animate-spin text-[#D94949]' : ''}`} />
+            </button>
+          </div>
+        }
+      />
+
+      {/* 2. KPI Cards Row */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {/* Total Revenue */}
-        <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-sm space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-xxs font-bold text-slate-400 uppercase tracking-wider">Total Sales Revenue</span>
-            <div className="h-8 w-8 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center border border-emerald-200">
-              <DollarSign className="h-4 w-4" />
-            </div>
-          </div>
-          <h3 className="text-xl font-bold text-slate-900">₹{data.summary.totalSales.toFixed(2)}</h3>
-          <p className="text-[10px] text-emerald-600 font-semibold flex items-center gap-1">
-            <TrendingUp className="h-3 w-3" /> Net completed transactions
-          </p>
-        </div>
+        <MetricCard
+          title="Total Sales Revenue"
+          value={`₹${data.summary.totalSales.toFixed(2)}`}
+          icon={<DollarSign className="h-5 w-5" />}
+          iconBgColor="bg-emerald-50"
+          iconTextColor="text-[#009966]"
+          subtext="Net completed transactions"
+        />
 
-        {/* Total Bills */}
-        <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-sm space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-xxs font-bold text-slate-400 uppercase tracking-wider">Total Bills</span>
-            <div className="h-8 w-8 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center border border-blue-200">
-              <Receipt className="h-4 w-4" />
-            </div>
-          </div>
-          <h3 className="text-xl font-bold text-slate-900">{data.summary.totalBills}</h3>
-          <p className="text-[10px] text-slate-400 font-medium">Orders placed in timeframe</p>
-        </div>
+        <MetricCard
+          title="Total Bills"
+          value={data.summary.totalBills}
+          icon={<Receipt className="h-5 w-5" />}
+          iconBgColor="bg-blue-50"
+          iconTextColor="text-[#0284C7]"
+          subtext="Orders placed in timeframe"
+        />
 
-        {/* Average Order Value (AOV) */}
-        <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-sm space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-xxs font-bold text-slate-400 uppercase tracking-wider">Avg Order Value</span>
-            <div className="h-8 w-8 bg-purple-50 text-purple-600 rounded-xl flex items-center justify-center border border-purple-200">
-              <ShoppingBag className="h-4 w-4" />
-            </div>
-          </div>
-          <h3 className="text-xl font-bold text-slate-900">₹{avgOrderValue.toFixed(2)}</h3>
-          <p className="text-[10px] text-slate-400 font-medium">Average revenue per ticket</p>
-        </div>
+        <MetricCard
+          title="Average Order Value"
+          value={`₹${avgOrderValue.toFixed(2)}`}
+          icon={<ShoppingBag className="h-5 w-5" />}
+          iconBgColor="bg-purple-50"
+          iconTextColor="text-purple-600"
+          subtext="Average revenue per ticket"
+        />
 
-        {/* Cancelled Bills */}
-        <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-sm space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-xxs font-bold text-slate-400 uppercase tracking-wider">Cancelled Bills</span>
-            <div className="h-8 w-8 bg-rose-50 text-rose-600 rounded-xl flex items-center justify-center border border-rose-200">
-              <Ban className="h-4 w-4" />
-            </div>
-          </div>
-          <h3 className="text-xl font-bold text-slate-900">{data.summary.totalCancelledBills}</h3>
-          <p className="text-[10px] text-rose-500 font-medium">Returned / Cancelled orders</p>
-        </div>
+        <MetricCard
+          title="Cancelled Bills"
+          value={data.summary.totalCancelledBills}
+          icon={<Ban className="h-5 w-5" />}
+          iconBgColor="bg-rose-50"
+          iconTextColor="text-[#D94949]"
+          subtext="Returned / Cancelled orders"
+        />
       </div>
 
-      {/* Main Grid: Category Volume & Sales History Table */}
+      {/* 3. Main Content Grid: Left Category Volume & Right Transactions Table */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
         {/* Category Sales Volume Panel */}
-        <aside className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-4">
+        <aside className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-xs space-y-4">
           <div className="flex items-center justify-between border-b border-slate-100 pb-3">
             <span className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
-              <Tag className="h-4 w-4 text-primary" />
+              <Tag className="h-4 w-4 text-[#D94949]" />
               Category Sales Volume
             </span>
           </div>
@@ -402,9 +397,12 @@ export default function SalesHistoryPage() {
               <p className="text-xxs text-slate-400 text-center py-6">No category sales recorded in range.</p>
             ) : (
               Object.entries(data.summary.categorySalesCount).map(([name, qty]) => (
-                <div key={name} className="flex justify-between items-center text-xs font-semibold p-2 bg-slate-50 hover:bg-slate-100/70 rounded-xl border border-slate-150 transition-colors">
-                  <span className="text-slate-700 truncate max-w-[140px]">{name}</span>
-                  <span className="bg-white text-slate-900 px-2 py-0.5 rounded-lg text-xxs font-bold border border-slate-200 shadow-xxs">
+                <div
+                  key={name}
+                  className="flex justify-between items-center text-xs font-semibold p-2.5 bg-slate-50/80 hover:bg-slate-100/70 rounded-xl border border-slate-150 transition-colors"
+                >
+                  <span className="text-slate-700 truncate max-w-[130px]">{name}</span>
+                  <span className="bg-white text-slate-900 px-2 py-0.5 rounded-lg text-xxs font-bold border border-slate-200 shadow-xxs font-mono tabular-nums">
                     {qty} sold
                   </span>
                 </div>
@@ -414,7 +412,7 @@ export default function SalesHistoryPage() {
         </aside>
 
         {/* Sales Bills History Panel */}
-        <main className="lg:col-span-3 bg-white border border-slate-200 rounded-2xl shadow-sm flex flex-col p-6 space-y-5">
+        <main className="lg:col-span-3 bg-white border border-slate-200/80 rounded-2xl shadow-xs flex flex-col p-6 space-y-5">
           {/* Search and Filters Bar */}
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
             {/* Search Input */}
@@ -425,13 +423,13 @@ export default function SalesHistoryPage() {
                 placeholder="Search by Bill #, Customer name, or phone..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 py-2 text-xs font-medium focus:outline-none focus:bg-white focus:border-primary text-slate-850 transition-all"
+                className="w-full bg-slate-50 border border-slate-200/80 rounded-xl pl-10 pr-4 py-2 text-xs font-medium focus:outline-none focus:bg-white focus:border-[#D94949] text-slate-850 transition-all"
               />
             </div>
 
             {/* Filter Dropdowns */}
             <div className="flex items-center gap-2">
-              <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs font-semibold">
+              <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200/80 rounded-xl px-2.5 py-1.5 text-xs font-semibold">
                 <Filter className="h-3.5 w-3.5 text-slate-400" />
                 <select
                   value={statusFilter}
@@ -447,7 +445,7 @@ export default function SalesHistoryPage() {
                 </select>
               </div>
 
-              <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs font-semibold">
+              <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200/80 rounded-xl px-2.5 py-1.5 text-xs font-semibold">
                 <CreditCard className="h-3.5 w-3.5 text-slate-400" />
                 <select
                   value={paymentFilter}
@@ -467,19 +465,20 @@ export default function SalesHistoryPage() {
           {/* Orders Table */}
           <div className="overflow-x-auto">
             {filteredOrders.length === 0 ? (
-              <div className="text-center py-12 text-slate-400 text-xs font-medium space-y-2">
-                <AlertCircle className="h-8 w-8 text-slate-300 mx-auto" />
-                <p>No sales orders match your filter criteria.</p>
-              </div>
+              <EmptyState
+                title="No sales recorded"
+                description="There are no completed sales matching your filter criteria for the selected period."
+                icon={<Receipt className="h-6 w-6 text-slate-400" />}
+              />
             ) : (
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
-                  <tr className="bg-slate-50/80 text-slate-500 font-bold border-b border-slate-200 text-xxs uppercase tracking-wider">
+                  <tr className="bg-slate-50/80 text-slate-500 font-bold border-b border-slate-200/80 text-xxs uppercase tracking-wider">
                     <th className="px-4 py-3 rounded-l-xl">Order #</th>
                     <th className="px-4 py-3">Customer</th>
                     <th className="px-4 py-3">Date & Time</th>
                     <th className="px-4 py-3">Payment</th>
-                    <th className="px-4 py-3">Grand Total</th>
+                    <th className="px-4 py-3 text-right">Grand Total</th>
                     <th className="px-4 py-3">Cashier</th>
                     <th className="px-4 py-3">Status</th>
                     <th className="px-4 py-3 text-right rounded-r-xl">Actions</th>
@@ -490,7 +489,7 @@ export default function SalesHistoryPage() {
                     <tr key={o.id} className="hover:bg-slate-50/60 transition-colors">
                       <td className="px-4 py-3.5">
                         <div className="flex items-center gap-2">
-                          <span className="font-extrabold text-slate-900 text-xs">#{o.orderNumber}</span>
+                          <span className="font-extrabold text-slate-900 text-xs font-mono">#{o.orderNumber}</span>
                           {o.type && (
                             <span className="px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded text-[10px] font-bold border border-slate-200">
                               {o.type}
@@ -512,37 +511,26 @@ export default function SalesHistoryPage() {
                       </td>
 
                       <td className="px-4 py-3.5">
-                        <span className={`px-2 py-0.5 rounded-lg text-xxs font-extrabold uppercase border ${
-                          o.paymentMethod === 'CASH'
-                            ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                            : o.paymentMethod === 'UPI'
-                            ? 'bg-blue-50 text-blue-800 border-blue-200'
-                            : o.paymentMethod === 'CARD'
-                            ? 'bg-purple-50 text-purple-800 border-purple-200'
-                            : 'bg-slate-100 text-slate-700 border-slate-250'
-                        }`}>
-                          {o.paymentMethod}
-                        </span>
+                        <StatusBadge
+                          status={o.paymentMethod}
+                          size="sm"
+                        />
                       </td>
 
-                      <td className="px-4 py-3.5 font-bold text-slate-900 text-sm">
+                      <td className="px-4 py-3.5 font-bold text-slate-900 text-sm text-right font-mono tabular-nums">
                         ₹{Number(o.grandTotal).toFixed(2)}
                       </td>
 
-                      <td className="px-4 py-3.5 text-slate-600 font-semibold">
+                      <td className="px-4 py-3.5 text-slate-600 font-semibold text-xs">
                         {o.cashierName}
                       </td>
 
                       <td className="px-4 py-3.5">
-                        <span className={`px-2.5 py-0.5 rounded-full text-xxs font-bold border ${
-                          o.status === 'COMPLETED'
-                            ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                            : o.status === 'CANCELLED'
-                            ? 'bg-rose-50 text-rose-800 border-rose-200'
-                            : 'bg-amber-50 text-amber-800 border-amber-250 animate-pulse'
-                        }`}>
-                          {o.status}
-                        </span>
+                        <StatusBadge
+                          status={o.status}
+                          size="sm"
+                          showDot={o.status === 'CANCELLED' || o.status === 'COMPLETED'}
+                        />
                       </td>
 
                       <td className="px-4 py-3.5 text-right">
@@ -602,10 +590,10 @@ export default function SalesHistoryPage() {
             className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-40 transition-opacity"
             onClick={() => setViewingOrderDetails(null)}
           />
-          <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-lg bg-white rounded-2xl shadow-2xl border border-slate-200 z-50 overflow-hidden flex flex-col max-h-[90vh]">
+          <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-lg bg-white rounded-2xl shadow-2xl border border-slate-200 z-50 overflow-hidden flex flex-col max-h-[90vh] animate-fade-in">
             <div className="flex items-center justify-between p-5 border-b border-slate-100 bg-slate-50/50">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-emerald-50 text-emerald-600 rounded-lg">
+                <div className="p-2 bg-emerald-50 text-emerald-600 rounded-xl border border-emerald-100">
                   <Receipt className="h-5 w-5" />
                 </div>
                 <div>
@@ -635,13 +623,13 @@ export default function SalesHistoryPage() {
                     {viewingOrderDetails.customerName || 'Walk-in Customer'}
                   </span>
                   {viewingOrderDetails.customerPhone && (
-                    <span className="text-slate-400 block">{viewingOrderDetails.customerPhone}</span>
+                    <span className="text-slate-400 block font-mono">{viewingOrderDetails.customerPhone}</span>
                   )}
                 </div>
                 <div>
-                  <span className="text-slate-400 uppercase font-bold block">Order Type & Table</span>
+                  <span className="text-slate-400 uppercase font-bold block">Order Type</span>
                   <span className="text-slate-800 font-bold">
-                    {viewingOrderDetails.type} {viewingOrderDetails.table ? `(Table ${viewingOrderDetails.table.number})` : ''}
+                    {viewingOrderDetails.type}
                   </span>
                 </div>
               </div>
@@ -666,8 +654,8 @@ export default function SalesHistoryPage() {
                             {item.dish?.name || item.name}
                           </td>
                           <td className="px-3 py-2 text-center font-bold text-slate-700">{item.quantity}</td>
-                          <td className="px-3 py-2 text-right text-slate-600">₹{Number(item.price).toFixed(2)}</td>
-                          <td className="px-3 py-2 text-right font-bold text-slate-900">
+                          <td className="px-3 py-2 text-right text-slate-600 font-mono">₹{Number(item.price).toFixed(2)}</td>
+                          <td className="px-3 py-2 text-right font-bold text-slate-900 font-mono">
                             ₹{(Number(item.price) * item.quantity).toFixed(2)}
                           </td>
                         </tr>
@@ -681,21 +669,17 @@ export default function SalesHistoryPage() {
               <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5 text-xs font-semibold">
                 <div className="flex justify-between text-slate-600 text-xxs">
                   <span>Subtotal:</span>
-                  <span>₹{Number(viewingOrderDetails.subtotal || viewingOrderDetails.grandTotal).toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between text-slate-600 text-xxs">
-                  <span>Tax (GST):</span>
-                  <span>₹{Number(viewingOrderDetails.taxTotal || 0).toFixed(2)}</span>
+                  <span className="font-mono">₹{Number(viewingOrderDetails.subtotal || viewingOrderDetails.grandTotal).toFixed(2)}</span>
                 </div>
                 {Number(viewingOrderDetails.discountTotal || 0) > 0 && (
                   <div className="flex justify-between text-emerald-600 text-xxs">
                     <span>Discount:</span>
-                    <span>-₹{Number(viewingOrderDetails.discountTotal).toFixed(2)}</span>
+                    <span className="font-mono">-₹{Number(viewingOrderDetails.discountTotal).toFixed(2)}</span>
                   </div>
                 )}
                 <div className="flex justify-between text-slate-900 text-sm font-bold pt-2 border-t border-slate-200">
                   <span>Grand Total:</span>
-                  <span>₹{Number(viewingOrderDetails.grandTotal).toFixed(2)}</span>
+                  <span className="font-mono text-base font-black">₹{Number(viewingOrderDetails.grandTotal).toFixed(2)}</span>
                 </div>
               </div>
             </div>
@@ -704,7 +688,7 @@ export default function SalesHistoryPage() {
               <button
                 type="button"
                 onClick={() => setViewingOrderDetails(null)}
-                className="flex-1 py-2.5 text-xs font-semibold text-slate-650 border border-slate-200 rounded-xl hover:bg-slate-100 transition-all cursor-pointer bg-white"
+                className="flex-1 py-2.5 text-xs font-semibold text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-100 transition-all cursor-pointer bg-white"
               >
                 Close
               </button>
@@ -715,7 +699,7 @@ export default function SalesHistoryPage() {
                   setViewingOrderDetails(null);
                   handleReprintBill(id);
                 }}
-                className="flex-1 py-2.5 text-xs font-bold text-white bg-primary hover:bg-primary-hover rounded-xl shadow-sm transition-all cursor-pointer flex items-center justify-center gap-2"
+                className="flex-1 py-2.5 text-xs font-bold text-white bg-[#D94949] hover:bg-[#C53B3B] rounded-xl shadow-xs transition-all cursor-pointer flex items-center justify-center gap-2"
               >
                 <Printer className="h-4 w-4 text-white" />
                 <span>Reprint Receipt</span>
@@ -757,7 +741,7 @@ export default function SalesHistoryPage() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-500">Grand Total:</span>
-                  <span className="text-slate-900 font-bold">₹{Number(cancellingBill.grandTotal).toFixed(2)}</span>
+                  <span className="text-slate-900 font-bold font-mono">₹{Number(cancellingBill.grandTotal).toFixed(2)}</span>
                 </div>
               </div>
 
@@ -768,7 +752,7 @@ export default function SalesHistoryPage() {
                 <textarea
                   value={cancelReason}
                   onChange={(e) => setCancelReason(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:bg-white h-20 text-slate-855"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:bg-white focus:border-[#D94949] h-20 text-slate-850"
                   placeholder="e.g. Customer changed mind, incorrect billing entries..."
                   required
                 />
@@ -778,14 +762,14 @@ export default function SalesHistoryPage() {
                 <button
                   type="button"
                   onClick={() => setCancellingBill(null)}
-                  className="px-4 py-2.5 border rounded-xl hover:bg-slate-100 text-slate-700 font-bold text-xxs transition-colors cursor-pointer bg-white"
+                  className="px-4 py-2.5 border border-slate-200 rounded-xl hover:bg-slate-100 text-slate-700 font-bold text-xxs transition-colors cursor-pointer bg-white"
                 >
-                  Cancel
+                  Close
                 </button>
                 <button
                   type="submit"
                   disabled={cancelMutation.isPending}
-                  className="px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xxs rounded-xl active-press transition-colors shadow-sm cursor-pointer disabled:opacity-50"
+                  className="px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xxs rounded-xl active-press transition-colors shadow-xs cursor-pointer disabled:opacity-50"
                 >
                   {cancelMutation.isPending ? 'Processing...' : 'Confirm Cancellation'}
                 </button>
@@ -836,7 +820,7 @@ export default function SalesHistoryPage() {
                 <tr key={idx}>
                   <td className="py-1">{i.dish?.name || i.name}</td>
                   <td className="py-1 text-center font-bold">{i.quantity}</td>
-                  <td className="py-1 text-right font-bold">₹{(Number(i.price) * i.quantity).toFixed(2)}</td>
+                  <td className="py-1 text-right font-bold font-mono">₹{(Number(i.price) * i.quantity).toFixed(2)}</td>
                 </tr>
               ))}
             </tbody>

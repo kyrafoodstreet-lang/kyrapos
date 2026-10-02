@@ -10,7 +10,8 @@ export interface User {
 interface AuthState {
   user: User | null;
   token: string | null;
-  login: (user: User, token: string) => void;
+  alwaysLogin: boolean;
+  login: (user: User, token: string, alwaysLogin?: boolean) => void;
   logout: () => void;
 }
 
@@ -26,23 +27,31 @@ export const useAuthStore = create<AuthState>((set) => {
   const initialUserRaw = getLocalStorage('kyra_user');
   const initialUser = initialUserRaw ? JSON.parse(initialUserRaw) : null;
   const initialToken = getLocalStorage('kyra_token');
+  const initialAlwaysLogin = getLocalStorage('kyra_always_login') === 'true';
 
   return {
     user: initialUser,
     token: initialToken,
-    login: (user, token) => {
+    alwaysLogin: initialAlwaysLogin,
+    login: (user, token, alwaysLogin = true) => {
       if (typeof window !== 'undefined') {
         localStorage.setItem('kyra_user', JSON.stringify(user));
         localStorage.setItem('kyra_token', token);
+        if (alwaysLogin) {
+          localStorage.setItem('kyra_always_login', 'true');
+        } else {
+          localStorage.removeItem('kyra_always_login');
+        }
       }
-      set({ user, token });
+      set({ user, token, alwaysLogin });
     },
     logout: () => {
       if (typeof window !== 'undefined') {
         localStorage.removeItem('kyra_user');
         localStorage.removeItem('kyra_token');
+        localStorage.removeItem('kyra_always_login');
       }
-      set({ user: null, token: null });
+      set({ user: null, token: null, alwaysLogin: false });
     },
   };
 });

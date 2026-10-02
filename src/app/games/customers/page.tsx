@@ -40,8 +40,9 @@ export default function CustomersList() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
+      <div className="flex flex-col items-center justify-center min-h-[380px] space-y-3">
+        <div className="h-9 w-9 animate-spin rounded-full border-3 border-[#D94949] border-t-transparent"></div>
+        <p className="text-xs font-semibold text-slate-400">Loading Customer Profiles...</p>
       </div>
     );
   }
@@ -56,32 +57,36 @@ export default function CustomersList() {
   });
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
+    <div className="space-y-5 max-w-7xl mx-auto">
       {/* Header Banner */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-        <div>
-          <h1 className="text-xl font-bold text-slate-800 flex items-center gap-2">
-            <Users className="h-5.5 w-5.5 text-blue-600" />
-            <span>Games Customers</span>
-          </h1>
-          <p className="text-xs text-slate-500 mt-1">
-            Browse registered customer details, visit history metrics, and favorite play zones.
-          </p>
+      <div className="bg-white border border-slate-200/80 rounded-2xl p-4 sm:p-5 shadow-xs flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-rose-50 border border-rose-100/80 text-[#D94949] flex items-center justify-center font-bold shrink-0">
+            <Users className="h-5 w-5" />
+          </div>
+          <div>
+            <h1 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight leading-tight">
+              Games Customers
+            </h1>
+            <p className="text-xs text-slate-500 font-medium mt-0.5">
+              Browse registered customer profiles, visit history metrics, and favorite play zones.
+            </p>
+          </div>
         </div>
       </div>
 
       {/* Filter panel */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
         {/* Left Column: Customers table list */}
         <div className="lg:col-span-8 space-y-4">
-          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex items-center gap-3">
-            <Search className="h-5 w-5 text-slate-400" />
+          <div className="bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-xs flex items-center gap-3">
+            <Search className="h-4.5 w-4.5 text-slate-400 shrink-0 ml-1" />
             <input
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Search by customer name, mobile or favorite play zone..."
-              className="flex-1 bg-transparent text-xs text-slate-800 outline-none placeholder-slate-450"
+              className="flex-1 bg-transparent text-xs sm:text-sm font-medium text-slate-900 outline-none placeholder:text-slate-400"
             />
           </div>
 
@@ -123,7 +128,7 @@ export default function CustomersList() {
                         <td className="px-5 py-4 text-right">
                           <button
                             onClick={() => setSelectedCustomer(c)}
-                            className="px-2.5 py-1 hover:bg-blue-50 text-blue-600 hover:text-blue-700 rounded border border-blue-100 font-bold text-xxs transition-colors"
+                            className="px-3 py-1 bg-[#D94949]/10 hover:bg-[#D94949]/20 text-[#D94949] rounded-lg border border-[#D94949]/20 font-bold text-xxs transition-colors cursor-pointer"
                           >
                             Inspect
                           </button>
@@ -140,7 +145,7 @@ export default function CustomersList() {
         {/* Right Column: Customer Details Side Panel */}
         <div className="lg:col-span-4 bg-white border border-slate-200 rounded-2xl shadow-sm p-6 space-y-6">
           <h2 className="font-bold text-slate-800 text-sm border-b border-slate-100 pb-3 flex items-center gap-1.5">
-            <Sparkles className="h-4.5 w-4.5 text-blue-600" />
+            <Sparkles className="h-4.5 w-4.5 text-[#D94949]" />
             <span>Customer Details</span>
           </h2>
 
@@ -158,7 +163,7 @@ export default function CustomersList() {
                 <div className="flex justify-between items-center">
                   <span className="text-slate-500 font-medium">Favorite Play Zone:</span>
                   <span className="font-bold text-slate-850 flex items-center gap-1">
-                    <Gamepad2 className="h-4 w-4 text-blue-600" />
+                    <Gamepad2 className="h-4 w-4 text-[#D94949]" />
                     <span>{selectedCustomer.favoriteGame}</span>
                   </span>
                 </div>
@@ -170,7 +175,7 @@ export default function CustomersList() {
 
                 <div className="flex justify-between items-center">
                   <span className="text-slate-500 font-medium">Total Spend Contributions:</span>
-                  <span className="font-bold text-emerald-600">₹{selectedCustomer.totalRevenue.toLocaleString()}</span>
+                  <span className="font-bold text-[#009966]">₹{selectedCustomer.totalRevenue.toLocaleString()}</span>
                 </div>
 
                 {selectedCustomer.lastVisit && (
@@ -183,11 +188,11 @@ export default function CustomersList() {
                 )}
 
                 {selectedCustomer.activeSession && (
-                  <div className="p-3 bg-blue-50 border border-blue-100 rounded-xl flex items-center justify-between text-blue-800">
+                  <div className="p-3 bg-[#D94949]/10 border border-[#D94949]/20 rounded-xl flex items-center justify-between text-[#D94949]">
                     <span className="font-bold">Currently Playing!</span>
                     <button
                       onClick={() => router.push('/games/sessions?tab=active')}
-                      className="px-2.5 py-0.5 bg-blue-600 text-white rounded font-bold text-xxs"
+                      className="px-2.5 py-1 bg-[#D94949] hover:bg-[#C53B3B] text-white rounded-lg font-bold text-xxs cursor-pointer"
                     >
                       Track
                     </button>

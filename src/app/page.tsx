@@ -7,14 +7,21 @@ import { useAuthStore } from '@/store/authStore';
 export default function HomePage() {
   const router = useRouter();
   const token = useAuthStore((state) => state.token);
+  const user = useAuthStore((state) => state.user);
 
   useEffect(() => {
     if (!token) {
       router.replace('/login');
+    } else if (user?.role === 'CASHIER') {
+      router.replace('/cashier/dashboard');
+    } else if (user?.role === 'ADMIN') {
+      router.replace('/admin/dashboard');
+    } else if (user?.role === 'MANAGER') {
+      router.replace('/manager/dashboard');
     } else {
       router.replace('/dashboard');
     }
-  }, [token, router]);
+  }, [token, user, router]);
 
   return (
     <div className="flex h-screen w-screen items-center justify-center bg-slate-50">

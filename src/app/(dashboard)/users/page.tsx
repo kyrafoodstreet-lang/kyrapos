@@ -34,11 +34,13 @@ const ROLES = ['ADMIN', 'MANAGER', 'CASHIER'] as const;
 const roleBadge = (role: string) => {
   switch (role) {
     case 'ADMIN':
-      return { bg: 'bg-red-50 text-red-700 border-red-200', icon: ShieldAlert };
+      return { bg: 'bg-slate-900 text-white border-slate-800', icon: ShieldAlert };
     case 'MANAGER':
-      return { bg: 'bg-amber-50 text-amber-700 border-amber-200', icon: ShieldCheck };
+      return { bg: 'bg-sky-50 text-sky-700 border-sky-200', icon: ShieldCheck };
+    case 'CASHIER':
+      return { bg: 'bg-emerald-50 text-emerald-700 border-emerald-200', icon: Shield };
     default:
-      return { bg: 'bg-blue-50 text-blue-700 border-blue-200', icon: Shield };
+      return { bg: 'bg-slate-100 text-slate-700 border-slate-200', icon: Shield };
   }
 };
 
@@ -180,33 +182,37 @@ export default function UsersPage() {
   }
 
   return (
-    <div className="space-y-6 text-slate-700 font-sans">
+    <div className="space-y-5 text-slate-700 font-sans max-w-7xl mx-auto">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+      <div className="bg-white border border-slate-200/80 rounded-2xl p-4 sm:p-5 shadow-xs flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-primary-light rounded-lg">
-            <Users className="h-5 w-5 text-primary" />
+          <div className="w-10 h-10 rounded-xl bg-rose-50 border border-rose-100/80 text-[#D94949] flex items-center justify-center font-bold shrink-0">
+            <Users className="h-5 w-5" />
           </div>
           <div>
-            <h2 className="text-sm font-semibold text-slate-800">User Management</h2>
-            <p className="text-xxs text-slate-400 font-medium">{users.length} registered users</p>
+            <h1 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight leading-tight">
+              User Management
+            </h1>
+            <p className="text-xs text-slate-500 font-medium mt-0.5">
+              Manage system access roles, cashiers, kitchen staff, and security credentials.
+            </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-3 w-full sm:w-auto">
-          <div className="relative flex-1 sm:w-56">
-            <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-slate-400" />
+        <div className="flex items-center gap-2.5 w-full sm:w-auto">
+          <div className="relative flex-1 sm:w-60">
+            <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
             <input
               type="text"
-              placeholder="Search users..."
+              placeholder="Search users by name or email..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-8 pr-3 py-2 text-xxs font-medium focus:outline-none focus:bg-white text-slate-805 transition-all"
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-xs font-medium focus:outline-none focus:bg-white focus:border-[#D94949] focus:ring-2 focus:ring-[#D94949]/15 text-slate-900 transition-all"
             />
           </div>
           <button
             onClick={openCreateModal}
-            className="flex items-center gap-1.5 px-4 py-2 bg-primary hover:bg-primary-hover text-white font-semibold text-xxs rounded-lg shadow-sm transition-all active-press cursor-pointer shrink-0"
+            className="flex items-center gap-1.5 px-4 py-2 bg-[#D94949] hover:bg-[#C53B3B] text-white font-bold text-xs rounded-xl shadow-2xs transition-all active:scale-[0.98] cursor-pointer shrink-0"
           >
             <Plus className="h-3.5 w-3.5" />
             <span>Add User</span>
@@ -215,7 +221,7 @@ export default function UsersPage() {
       </div>
 
       {/* Users Table */}
-      <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+      <div className="bg-white border border-slate-200/80 rounded-2xl shadow-xs overflow-hidden">
         {isLoading ? (
           <div className="h-64 flex items-center justify-center">
             <Loader className="h-7 w-7 animate-spin text-primary" />

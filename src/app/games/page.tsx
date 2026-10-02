@@ -14,7 +14,8 @@ import {
   Clock,
   ArrowRight,
   TrendingUp,
-  Sparkles
+  Sparkles,
+  CalendarCheck
 } from 'lucide-react';
 
 interface RecentSession {
@@ -59,27 +60,27 @@ export default function GamesDashboard() {
   const cardData = [
     {
       title: "Today's Visitors",
-      value: `${stats?.todayVisitors || 0} heads`,
+      value: `${stats?.todayVisitors || 0} guests`,
       icon: Users,
-      color: "text-blue-600 bg-blue-50 border-blue-100",
+      color: "text-[#D94949] bg-[#D94949]/10 border-[#D94949]/20",
     },
     {
       title: "Today's Revenue",
       value: `₹${(stats?.todayRevenue || 0).toLocaleString()}`,
       icon: DollarSign,
-      color: "text-emerald-600 bg-emerald-50 border-emerald-100",
+      color: "text-[#009966] bg-[#009966]/10 border-[#009966]/20",
     },
     {
       title: "Active Sessions",
       value: `${stats?.activeSessions || 0} active`,
       icon: Play,
-      color: "text-purple-650 bg-purple-50 border-purple-100",
+      color: "text-[#D94949] bg-[#D94949]/10 border-[#D94949]/20",
     },
     {
       title: "Completed Today",
       value: `${stats?.completedSessions || 0} completed`,
       icon: CheckCircle,
-      color: "text-indigo-600 bg-indigo-50 border-indigo-100",
+      color: "text-[#009966] bg-[#009966]/10 border-[#009966]/20",
     },
     {
       title: "Pending Payments",
@@ -93,7 +94,7 @@ export default function GamesDashboard() {
       title: "Avg Session Time",
       value: `${stats?.averageSessionTime || 0} mins`,
       icon: Clock,
-      color: "text-sky-600 bg-sky-50 border-sky-100",
+      color: "text-[#D94949] bg-[#D94949]/10 border-[#D94949]/20",
     },
   ];
 
@@ -103,17 +104,24 @@ export default function GamesDashboard() {
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200 shadow-xs">
         <div>
           <h1 className="text-xl font-bold text-slate-800 flex items-center gap-2">
-            <Gamepad2 className="h-5.5 w-5.5 text-blue-600" />
+            <Gamepad2 className="h-5.5 w-5.5 text-[#D94949]" />
             <span>Games Dashboard</span>
           </h1>
           <p className="text-xs text-slate-500 mt-1">
             Real-time occupancy status, revenue totals, and checking lists for active and completed guest sessions.
           </p>
         </div>
-        <div className="flex gap-3 shrink-0">
+        <div className="flex gap-2.5 shrink-0 flex-wrap">
+          <button
+            onClick={() => router.push('/games/closing-report')}
+            className="px-4 py-2.5 bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs rounded-xl shadow-xs hover:shadow transition-all flex items-center gap-1.5 cursor-pointer"
+          >
+            <CalendarCheck className="h-3.5 w-3.5" />
+            <span>Day Close</span>
+          </button>
           <button
             onClick={() => router.push('/games/sessions/new')}
-            className="px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs rounded-xl shadow-sm hover:shadow transition-all flex items-center gap-1.5"
+            className="px-5 py-2.5 bg-[#D94949] hover:bg-[#C53B3B] text-white font-bold text-xs rounded-xl shadow-xs hover:shadow transition-all flex items-center gap-1.5 cursor-pointer"
           >
             <Play className="h-3.5 w-3.5 fill-current" />
             <span>New Game Session</span>
@@ -130,7 +138,7 @@ export default function GamesDashboard() {
               <span className="text-xxs font-bold text-slate-400 uppercase tracking-wider">{card.title}</span>
               <div className="flex items-center justify-between">
                 <span className="text-sm font-bold text-slate-800 tracking-tight">{card.value}</span>
-                <div className={`h-8 w-8 rounded-lg flex items-center justify-center border ${card.color}`}>
+                <div className={`h-8 w-8 rounded-xl flex items-center justify-center border ${card.color}`}>
                   <Icon className="h-4.5 w-4.5" />
                 </div>
               </div>
@@ -145,12 +153,12 @@ export default function GamesDashboard() {
         <div className="lg:col-span-8 bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden">
           <div className="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
             <h3 className="font-bold text-slate-800 text-sm flex items-center gap-2">
-              <TrendingUp className="h-4.5 w-4.5 text-blue-650" />
+              <TrendingUp className="h-4.5 w-4.5 text-[#D94949]" />
               <span>Recent Game Sessions</span>
             </h3>
             <button
               onClick={() => router.push('/games/sessions')}
-              className="text-xs font-semibold text-blue-600 hover:text-blue-750 transition-colors flex items-center gap-1"
+              className="text-xs font-semibold text-[#D94949] hover:text-[#C53B3B] transition-colors flex items-center gap-1 cursor-pointer"
             >
               <span>View All</span>
               <ArrowRight className="h-3.5 w-3.5" />
@@ -160,10 +168,10 @@ export default function GamesDashboard() {
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse text-xs">
               <thead>
-                <tr className="bg-slate-100/50 border-b border-slate-150 text-slate-455 font-bold uppercase tracking-wider text-xxs">
+                <tr className="bg-slate-50/80 border-b border-slate-200 text-slate-455 font-bold uppercase tracking-wider text-xxs">
                   <th className="px-5 py-3">ID</th>
                   <th className="px-5 py-3">Customer</th>
-                  <th className="px-5 py-3">Game / Package</th>
+                  <th className="px-5 py-3">Game / Duration</th>
                   <th className="px-5 py-3">Started</th>
                   <th className="px-5 py-3">Status</th>
                   <th className="px-5 py-3 text-right">Price</th>
@@ -189,10 +197,10 @@ export default function GamesDashboard() {
                         {new Date(session.entryTime).toLocaleTimeString(undefined, { timeStyle: 'short' })}
                       </td>
                       <td className="px-5 py-3.5">
-                        <span className={`px-2 py-0.5 rounded text-xxs font-bold uppercase ${
+                        <span className={`px-2.5 py-0.5 rounded-full text-xxs font-bold uppercase ${
                           session.status === 'ACTIVE'
-                            ? 'bg-blue-50 text-blue-700'
-                            : 'bg-emerald-50 text-emerald-700'
+                            ? 'bg-[#D94949]/10 text-[#D94949] border border-[#D94949]/20'
+                            : 'bg-[#009966]/10 text-[#009966] border border-[#009966]/20'
                         }`}>
                           {session.status}
                         </span>
@@ -211,7 +219,7 @@ export default function GamesDashboard() {
         {/* Right Column: Highlights Summary Info */}
         <div className="lg:col-span-4 bg-white border border-slate-200 rounded-2xl shadow-xs p-6 space-y-6">
           <h3 className="font-bold text-slate-800 text-sm flex items-center gap-1.5 border-b border-slate-100 pb-3">
-            <Sparkles className="h-4.5 w-4.5 text-blue-600" />
+            <Sparkles className="h-4.5 w-4.5 text-[#D94949]" />
             <span>Operational Highlights</span>
           </h3>
 
@@ -223,12 +231,12 @@ export default function GamesDashboard() {
               </p>
             </div>
 
-            <div className="p-4 bg-blue-50/50 border border-blue-100 rounded-xl space-y-2 text-xs">
-              <h4 className="font-bold text-blue-800 flex items-center gap-1">
+            <div className="p-4 bg-[#D94949]/5 border border-[#D94949]/15 rounded-xl space-y-2 text-xs">
+              <h4 className="font-bold text-[#D94949] flex items-center gap-1">
                 <Clock className="h-4 w-4" />
                 <span>Duration Auto-tracking</span>
               </h4>
-              <p className="text-blue-950/75 leading-relaxed text-xxs">
+              <p className="text-slate-700 leading-relaxed text-xxs">
                 The POS monitors playtime durations in the background. When closing a session, the system automatically checks for overtime and suggests proportional surcharge balances.
               </p>
             </div>
