@@ -5,26 +5,30 @@ import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
 import Link from 'next/link';
 import {
-  FaChartSimple,
-  FaUtensils,
-  FaCoins,
-  FaArrowTrendUp,
-  FaArrowTrendDown,
-  FaChevronRight,
-  FaChevronLeft,
-  FaRotate,
-  FaCartShopping,
-  FaUserGroup,
-  FaCalendarDays,
-  FaCircleExclamation,
-  FaArrowRight,
-  FaClock,
-  FaMoneyBillWave,
-  FaMobileScreenButton,
-  FaCreditCard,
-  FaReceipt,
-} from 'react-icons/fa6';
-import { MdSportsGymnastics } from 'react-icons/md';
+  BarChart3,
+  UtensilsCrossed,
+  Coins,
+  Activity,
+  TrendingUp,
+  TrendingDown,
+  ChevronRight,
+  ChevronLeft,
+  RefreshCw,
+  ShoppingBag,
+  Users,
+  Calendar,
+  AlertCircle,
+  ArrowRight,
+  Clock,
+  Banknote,
+  Smartphone,
+  CreditCard,
+  Receipt,
+  Sparkles,
+} from 'lucide-react';
+import { PageHeader, StatusBadge } from '@/components/ui';
+import { useAuthStore } from '@/store/authStore';
+import CashierDashboard from '@/components/dashboard/CashierDashboard';
 
 type PeriodType = 'today' | 'weekly' | 'monthly';
 type CategoryFilter = 'TOTAL' | 'FOOD' | 'TRAMPOLINE' | 'COIN_GAMES';
@@ -123,9 +127,6 @@ interface AdminDashboardData {
   }>;
 }
 
-import { useAuthStore } from '@/store/authStore';
-import CashierDashboard from '@/components/dashboard/CashierDashboard';
-
 export function AdminDashboardView() {
   // Period & Date Navigation State (Default to today)
   const [period, setPeriod] = useState<PeriodType>('today');
@@ -185,10 +186,6 @@ export function AdminDashboardView() {
     setReferenceDate(next);
   };
 
-  const handleResetToCurrent = () => {
-    setReferenceDate(new Date());
-  };
-
   // Format date query string for API
   const dateQueryStr = useMemo(() => {
     const yyyy = referenceDate.getFullYear();
@@ -198,7 +195,7 @@ export function AdminDashboardView() {
   }, [referenceDate]);
 
   // Query Dashboard Analytics
-  const { data, isLoading, error, refetch, isFetching } = useQuery<AdminDashboardData>({
+  const { data, isLoading, error, refetch } = useQuery<AdminDashboardData>({
     queryKey: ['adminDashboard', period, dateQueryStr],
     queryFn: async () => {
       const res = await api.get(`/reports/admin-dashboard?period=${period}&date=${dateQueryStr}`);
@@ -231,7 +228,6 @@ export function AdminDashboardView() {
     });
 
     const rawMax = Math.max(...values, 500);
-    // Round max nicely (e.g. 2000)
     const maxVal = Math.ceil(rawMax / 500) * 500 || 2000;
 
     const width = 800;
@@ -320,7 +316,7 @@ export function AdminDashboardView() {
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[420px] space-y-3">
-        <div className="h-9 w-9 animate-spin rounded-full border-3 border-[#D94949] border-t-transparent"></div>
+        <div className="h-8 w-8 animate-spin rounded-full border-3 border-[#D94949] border-t-transparent"></div>
         <p className="text-xs font-semibold text-slate-400">Loading Business Analytics...</p>
       </div>
     );
@@ -328,14 +324,15 @@ export function AdminDashboardView() {
 
   if (error || !data) {
     return (
-      <div className="p-6 bg-red-50 text-red-800 rounded-2xl border border-red-200 flex flex-col items-center justify-center max-w-md mx-auto text-center space-y-3">
-        <FaCircleExclamation className="h-7 w-7 text-[#D94949]" />
-        <h3 className="font-bold text-sm">Failed to load Dashboard</h3>
+      <div className="p-6 bg-rose-50 text-rose-800 rounded-2xl border border-rose-200 flex flex-col items-center justify-center max-w-md mx-auto text-center space-y-3">
+        <AlertCircle className="h-7 w-7 text-[#D94949]" />
+        <h3 className="font-bold text-xs">Failed to load Dashboard</h3>
         <button
+          type="button"
           onClick={() => refetch()}
-          className="px-4 py-2 bg-[#D94949] text-white text-xs font-bold rounded-xl cursor-pointer hover:bg-[#C53B3B] transition-all flex items-center gap-1.5"
+          className="px-4 py-2 bg-[#D94949] text-white text-xs font-bold rounded-xl cursor-pointer hover:bg-[#C53B3B] transition-all flex items-center gap-1.5 shadow-xs"
         >
-          <FaRotate className="h-3 w-3" />
+          <RefreshCw className="h-3.5 w-3.5" />
           <span>Retry</span>
         </button>
       </div>
@@ -351,140 +348,135 @@ export function AdminDashboardView() {
   });
 
   return (
-    <div className="space-y-4 sm:space-y-5 max-w-7xl mx-auto pb-16 animate-in fade-in-50 duration-200">
+    <div className="space-y-5 max-w-7xl mx-auto pb-16 animate-fade-in text-slate-700">
       {/* ========================================================= */}
       {/* 1. ADMIN DASHBOARD HEADER & PERIOD CONTROLS */}
       {/* ========================================================= */}
-      <div className="bg-white border border-slate-200/80 rounded-2xl p-4 sm:p-5 shadow-xs flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-rose-50 border border-rose-100 text-[#D94949] flex items-center justify-center font-bold shrink-0">
-            <FaChartSimple className="h-5 w-5" />
-          </div>
-          <div>
-            <h1 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight leading-tight">
-              Admin Dashboard
-            </h1>
-            <p className="text-xs text-slate-500 font-medium">
-              Business overview & revenue performance
-            </p>
-          </div>
-        </div>
-
-        {/* Period Switcher & Date Controls */}
-        <div className="flex flex-col sm:flex-row sm:items-center gap-2.5">
-          {/* Today / Weekly / Monthly Pills */}
-          <div className="bg-slate-100/90 p-1 rounded-xl flex items-center border border-slate-200/70 w-full sm:w-auto">
-            <button
-              onClick={() => setPeriod('today')}
-              className={`flex-1 sm:flex-initial px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                period === 'today'
-                  ? 'bg-[#D94949] text-white shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Today
-            </button>
-            <button
-              onClick={() => setPeriod('weekly')}
-              className={`flex-1 sm:flex-initial px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                period === 'weekly'
-                  ? 'bg-[#D94949] text-white shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Weekly
-            </button>
-            <button
-              onClick={() => setPeriod('monthly')}
-              className={`flex-1 sm:flex-initial px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                period === 'monthly'
-                  ? 'bg-[#D94949] text-white shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Monthly
-            </button>
-          </div>
-
-          {/* Date Selector / Stepper */}
-          <div className="flex items-center justify-between sm:justify-end gap-1.5 bg-white border border-slate-200/80 rounded-xl px-2.5 py-1.5 shadow-2xs">
-            <button
-              onClick={handlePrevPeriod}
-              title="Previous"
-              className="p-1 text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
-            >
-              <FaChevronLeft className="h-3 w-3" />
-            </button>
-
-            <div className="flex items-center gap-1.5 px-2 text-xs font-bold text-slate-800 min-w-[120px] justify-center">
-              <FaCalendarDays className="h-3.5 w-3.5 text-slate-400" />
-              <span>{data.periodLabel}</span>
+      <PageHeader
+        title="Admin Dashboard"
+        description="Business overview & revenue performance"
+        icon={<BarChart3 className="h-5 w-5" />}
+        action={
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2.5">
+            {/* Today / Weekly / Monthly Pills */}
+            <div className="bg-slate-100/90 p-1 rounded-xl flex items-center border border-slate-200/80 w-full sm:w-auto">
+              <button
+                type="button"
+                onClick={() => setPeriod('today')}
+                className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  period === 'today'
+                    ? 'bg-[#D94949] text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Today
+              </button>
+              <button
+                type="button"
+                onClick={() => setPeriod('weekly')}
+                className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  period === 'weekly'
+                    ? 'bg-[#D94949] text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Weekly
+              </button>
+              <button
+                type="button"
+                onClick={() => setPeriod('monthly')}
+                className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  period === 'monthly'
+                    ? 'bg-[#D94949] text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Monthly
+              </button>
             </div>
 
-            <button
-              onClick={handleNextPeriod}
-              title="Next"
-              className="p-1 text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+            {/* Date Selector / Stepper */}
+            <div className="flex items-center justify-between sm:justify-end gap-1.5 bg-white border border-slate-200/80 rounded-xl px-2.5 py-1.5 shadow-xxs">
+              <button
+                type="button"
+                onClick={handlePrevPeriod}
+                title="Previous"
+                className="p-1 text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+              >
+                <ChevronLeft className="h-3.5 w-3.5" />
+              </button>
+
+              <div className="flex items-center gap-1.5 px-2 text-xs font-bold text-slate-800 min-w-[120px] justify-center font-mono">
+                <Calendar className="h-3.5 w-3.5 text-slate-400" />
+                <span>{data.periodLabel}</span>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleNextPeriod}
+                title="Next"
+                className="p-1 text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+              >
+                <ChevronRight className="h-3.5 w-3.5" />
+              </button>
+
+              {isCurrentPeriod && (
+                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-[#009966] bg-emerald-50 px-1.5 py-0.5 rounded-full border border-emerald-200 shrink-0">
+                  <span className="h-1.5 w-1.5 rounded-full bg-[#009966] animate-pulse"></span>
+                  <span>Live</span>
+                </span>
+              )}
+            </div>
+
+            {/* Quick Access to Bill Management */}
+            <Link
+              href="/admin/bills"
+              className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-900 text-white hover:bg-slate-800 transition-all text-xs font-bold shadow-xs shrink-0"
             >
-              <FaChevronRight className="h-3 w-3" />
-            </button>
-
-            {isCurrentPeriod && (
-              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-[#009966] bg-[#009966]/10 px-1.5 py-0.5 rounded-full border border-[#009966]/20 shrink-0">
-                <span className="h-1.5 w-1.5 rounded-full bg-[#009966]"></span>
-                <span>Live</span>
-              </span>
-            )}
+              <Receipt className="h-3.5 w-3.5 text-slate-300" />
+              <span>Bill Management</span>
+            </Link>
           </div>
-
-          {/* Quick Access to Bill Management */}
-          <Link
-            href="/admin/bills"
-            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-900 text-white hover:bg-slate-800 transition-all text-xs font-bold shadow-xs shrink-0"
-          >
-            <FaReceipt className="h-3.5 w-3.5 text-indigo-400" />
-            <span>Bill Management</span>
-          </Link>
-        </div>
-      </div>
+        }
+      />
 
       {/* ========================================================= */}
-      {/* 2. TOP KPI CARDS (2x2 on Mobile, 4 Cols on Desktop) */}
+      {/* 2. TOP KPI CARDS (4 Columns) */}
       {/* ========================================================= */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {/* CARD 1: TOTAL REVENUE */}
         <div className="bg-white border border-slate-200/80 rounded-2xl p-4 sm:p-5 shadow-xs flex flex-col justify-between hover:border-slate-300 hover:shadow-sm transition-all relative overflow-hidden group">
           <div className="absolute top-0 right-0 w-24 h-24 bg-rose-50/50 rounded-full blur-2xl -mr-6 -mt-6 pointer-events-none transition-all group-hover:bg-rose-100/50" />
           <div className="flex items-center justify-between">
-            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-rose-50 text-[#D94949] border border-rose-100/80 flex items-center justify-center font-bold shrink-0">
-              <FaChartSimple className="h-4 w-4 sm:h-5 sm:w-5" />
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-rose-50 text-[#D94949] border border-rose-100/80 flex items-center justify-center font-bold shrink-0">
+              <BarChart3 className="h-4 w-4 sm:h-5 sm:w-5" />
             </div>
             <div className="flex items-center gap-1 text-xs font-bold text-slate-800">
               <span className="truncate max-w-[85px] sm:max-w-none">Total Revenue</span>
-              <FaChevronRight className="h-2.5 w-2.5 text-slate-400 shrink-0" />
+              <ChevronRight className="h-3 w-3 text-slate-400 shrink-0" />
             </div>
           </div>
 
           <div className="my-2.5 sm:my-3">
-            <div className="text-xl sm:text-2xl lg:text-3xl font-black text-slate-900 tracking-tight">
+            <div className="text-xl sm:text-2xl lg:text-3xl font-black text-slate-900 tracking-tight font-mono tabular-nums">
               ₹{kpis.totalRevenue.toLocaleString()}
             </div>
           </div>
 
-          <div className="flex items-center gap-1 text-[11px]">
+          <div className="flex items-center gap-1 text-xxs">
             {kpis.growth.total !== null ? (
               <>
                 <span
-                  className={`flex items-center gap-0.5 font-bold px-1.5 py-0.5 rounded text-[10px] sm:text-xxs ${
+                  className={`flex items-center gap-0.5 font-bold px-1.5 py-0.5 rounded text-[10px] sm:text-xxs font-mono ${
                     kpis.growth.total >= 0
-                      ? 'bg-emerald-50 text-emerald-700'
-                      : 'bg-rose-50 text-rose-600'
+                      ? 'bg-emerald-50 text-[#009966] border border-emerald-200/80'
+                      : 'bg-rose-50 text-rose-600 border border-rose-200/80'
                   }`}
                 >
                   {kpis.growth.total >= 0 ? (
-                    <FaArrowTrendUp className="h-2.5 w-2.5" />
+                    <TrendingUp className="h-3 w-3" />
                   ) : (
-                    <FaArrowTrendDown className="h-2.5 w-2.5" />
+                    <TrendingDown className="h-3 w-3" />
                   )}
                   <span>{kpis.growth.total >= 0 ? `+${kpis.growth.total}%` : `${kpis.growth.total}%`}</span>
                 </span>
@@ -493,7 +485,7 @@ export function AdminDashboardView() {
                 </span>
               </>
             ) : (
-              <span className="text-slate-400 font-medium text-[10px] sm:text-xxs">
+              <span className="text-slate-400 font-medium text-[10px] sm:text-xxs font-mono">
                 {kpis.totalTransactions} transactions
               </span>
             )}
@@ -504,26 +496,26 @@ export function AdminDashboardView() {
         <div className="bg-white border border-slate-200/80 rounded-2xl p-4 sm:p-5 shadow-xs flex flex-col justify-between hover:border-slate-300 hover:shadow-sm transition-all relative overflow-hidden group">
           <div className="absolute top-0 right-0 w-24 h-24 bg-sky-50/50 rounded-full blur-2xl -mr-6 -mt-6 pointer-events-none transition-all group-hover:bg-sky-100/50" />
           <div className="flex items-center justify-between">
-            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-sky-50 text-sky-600 border border-sky-100/80 flex items-center justify-center font-bold shrink-0">
-              <FaUtensils className="h-4 w-4 sm:h-5 sm:w-5" />
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-sky-50 text-sky-600 border border-sky-100/80 flex items-center justify-center font-bold shrink-0">
+              <UtensilsCrossed className="h-4 w-4 sm:h-5 sm:w-5" />
             </div>
             <div className="flex items-center gap-1 text-xs font-bold text-slate-800">
               <span className="truncate max-w-[85px] sm:max-w-none">Food Sales</span>
-              <FaChevronRight className="h-2.5 w-2.5 text-slate-400 shrink-0" />
+              <ChevronRight className="h-3 w-3 text-slate-400 shrink-0" />
             </div>
           </div>
 
           <div className="my-2.5 sm:my-3">
-            <div className="text-xl sm:text-2xl lg:text-3xl font-black text-slate-900 tracking-tight">
+            <div className="text-xl sm:text-2xl lg:text-3xl font-black text-slate-900 tracking-tight font-mono tabular-nums">
               ₹{kpis.foodSales.toLocaleString()}
             </div>
           </div>
 
-          <div className="flex items-center justify-between gap-1 text-[11px]">
-            <span className="inline-block font-bold text-sky-700 bg-sky-50 border border-sky-100/80 px-1.5 py-0.5 rounded text-[10px] sm:text-xxs">
+          <div className="flex items-center justify-between gap-1 text-xxs">
+            <span className="inline-block font-bold text-sky-700 bg-sky-50 border border-sky-100/80 px-1.5 py-0.5 rounded text-[10px] sm:text-xxs font-mono">
               {kpis.mix.food}% of revenue
             </span>
-            <span className="text-[10px] sm:text-xxs text-slate-400 font-medium truncate">
+            <span className="text-[10px] sm:text-xxs text-slate-400 font-medium truncate font-mono">
               {kpis.foodOrdersCount} orders
             </span>
           </div>
@@ -533,26 +525,26 @@ export function AdminDashboardView() {
         <div className="bg-white border border-slate-200/80 rounded-2xl p-4 sm:p-5 shadow-xs flex flex-col justify-between hover:border-slate-300 hover:shadow-sm transition-all relative overflow-hidden group">
           <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-50/50 rounded-full blur-2xl -mr-6 -mt-6 pointer-events-none transition-all group-hover:bg-emerald-100/50" />
           <div className="flex items-center justify-between">
-            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-100/80 flex items-center justify-center font-bold shrink-0">
-              <MdSportsGymnastics className="h-4 w-4 sm:h-5 sm:w-5" />
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-emerald-50 text-[#009966] border border-emerald-100/80 flex items-center justify-center font-bold shrink-0">
+              <Activity className="h-4 w-4 sm:h-5 sm:w-5" />
             </div>
             <div className="flex items-center gap-1 text-xs font-bold text-slate-800">
               <span className="truncate max-w-[85px] sm:max-w-none">Trampoline Sales</span>
-              <FaChevronRight className="h-2.5 w-2.5 text-slate-400 shrink-0" />
+              <ChevronRight className="h-3 w-3 text-slate-400 shrink-0" />
             </div>
           </div>
 
           <div className="my-2.5 sm:my-3">
-            <div className="text-xl sm:text-2xl lg:text-3xl font-black text-slate-900 tracking-tight">
+            <div className="text-xl sm:text-2xl lg:text-3xl font-black text-slate-900 tracking-tight font-mono tabular-nums">
               ₹{kpis.trampolineSales.toLocaleString()}
             </div>
           </div>
 
-          <div className="flex items-center justify-between gap-1 text-[11px]">
-            <span className="inline-block font-bold text-[#D94949] bg-rose-50 border border-rose-100 px-1.5 py-0.5 rounded text-[10px] sm:text-xxs">
+          <div className="flex items-center justify-between gap-1 text-xxs">
+            <span className="inline-block font-bold text-[#009966] bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded text-[10px] sm:text-xxs font-mono">
               {kpis.mix.trampoline}% of revenue
             </span>
-            <span className="text-[10px] sm:text-xxs text-slate-400 font-medium truncate">
+            <span className="text-[10px] sm:text-xxs text-slate-400 font-medium truncate font-mono">
               {kpis.trampolineSessionsCount} sessions
             </span>
           </div>
@@ -562,26 +554,26 @@ export function AdminDashboardView() {
         <div className="bg-white border border-slate-200/80 rounded-2xl p-4 sm:p-5 shadow-xs flex flex-col justify-between hover:border-slate-300 hover:shadow-sm transition-all relative overflow-hidden group">
           <div className="absolute top-0 right-0 w-24 h-24 bg-amber-50/50 rounded-full blur-2xl -mr-6 -mt-6 pointer-events-none transition-all group-hover:bg-amber-100/50" />
           <div className="flex items-center justify-between">
-            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-amber-50 text-amber-600 border border-amber-100/80 flex items-center justify-center font-bold shrink-0">
-              <FaCoins className="h-4 w-4 sm:h-5 sm:w-5" />
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-amber-50 text-amber-600 border border-amber-100/80 flex items-center justify-center font-bold shrink-0">
+              <Coins className="h-4 w-4 sm:h-5 sm:w-5" />
             </div>
             <div className="flex items-center gap-1 text-xs font-bold text-slate-800">
               <span className="truncate max-w-[85px] sm:max-w-none">Coin Games</span>
-              <FaChevronRight className="h-2.5 w-2.5 text-slate-400 shrink-0" />
+              <ChevronRight className="h-3 w-3 text-slate-400 shrink-0" />
             </div>
           </div>
 
           <div className="my-2.5 sm:my-3">
-            <div className="text-xl sm:text-2xl lg:text-3xl font-black text-slate-900 tracking-tight">
+            <div className="text-xl sm:text-2xl lg:text-3xl font-black text-slate-900 tracking-tight font-mono tabular-nums">
               ₹{kpis.coinGamesSales.toLocaleString()}
             </div>
           </div>
 
-          <div className="flex items-center justify-between gap-1 text-[11px]">
-            <span className="inline-block font-bold text-amber-700 bg-amber-50 border border-amber-100 px-1.5 py-0.5 rounded text-[10px] sm:text-xxs">
+          <div className="flex items-center justify-between gap-1 text-xxs">
+            <span className="inline-block font-bold text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded text-[10px] sm:text-xxs font-mono">
               {kpis.mix.coinGames}% of revenue
             </span>
-            <span className="text-[10px] sm:text-xxs text-slate-400 font-medium truncate">
+            <span className="text-[10px] sm:text-xxs text-slate-400 font-medium truncate font-mono">
               {kpis.coinGamesTransactionsCount} sales
             </span>
           </div>
@@ -589,46 +581,46 @@ export function AdminDashboardView() {
       </div>
 
       {/* ========================================================= */}
-      {/* 2.5 DESKTOP EXECUTIVE STATS STRIP (Hidden on mobile) */}
+      {/* 2.5 DESKTOP EXECUTIVE STATS STRIP */}
       {/* ========================================================= */}
       <div className="hidden md:grid md:grid-cols-4 gap-3 bg-slate-900 text-white rounded-2xl p-4 shadow-sm">
         <div className="flex items-center gap-3 border-r border-slate-800/80 pr-3">
-          <div className="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center text-rose-400 font-bold">
-            <FaCartShopping className="h-4 w-4" />
+          <div className="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center text-rose-400 font-bold shrink-0">
+            <ShoppingBag className="h-4 w-4" />
           </div>
           <div>
             <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider block">
               Total Transactions
             </span>
-            <span className="text-base font-black text-white">
+            <span className="text-base font-black text-white font-mono tabular-nums">
               {kpis.totalTransactions}
             </span>
           </div>
         </div>
 
         <div className="flex items-center gap-3 border-r border-slate-800/80 pr-3">
-          <div className="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center text-emerald-400 font-bold">
-            <FaMoneyBillWave className="h-4 w-4" />
+          <div className="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center text-emerald-400 font-bold shrink-0">
+            <Banknote className="h-4 w-4" />
           </div>
           <div>
             <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider block">
               Avg Transaction Value (ATV)
             </span>
-            <span className="text-base font-black text-white">
+            <span className="text-base font-black text-white font-mono tabular-nums">
               ₹{kpis.averageTransactionValue.toLocaleString()}
             </span>
           </div>
         </div>
 
         <div className="flex items-center gap-3 border-r border-slate-800/80 pr-3">
-          <div className="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center text-sky-400 font-bold">
-            <FaUserGroup className="h-4 w-4" />
+          <div className="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center text-sky-400 font-bold shrink-0">
+            <Users className="h-4 w-4" />
           </div>
           <div>
             <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider block">
               Live Active Sessions
             </span>
-            <span className="text-base font-black text-white flex items-center gap-1.5">
+            <span className="text-base font-black text-white flex items-center gap-1.5 font-mono tabular-nums">
               <span>{todaySummary.activeSessions}</span>
               {todaySummary.activeSessions > 0 && (
                 <span className="relative flex h-2 w-2">
@@ -645,7 +637,7 @@ export function AdminDashboardView() {
             <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider block">
               Payment Mix (Cash/UPI)
             </span>
-            <div className="flex items-center gap-2 mt-0.5 text-xs font-semibold">
+            <div className="flex items-center gap-2 mt-0.5 text-xs font-semibold font-mono">
               <span className="text-emerald-400">
                 ₹{((data.paymentMethods?.upi || 0) / 1000).toFixed(1)}k UPI
               </span>
@@ -674,51 +666,55 @@ export function AdminDashboardView() {
           <div className="bg-white border border-slate-200/80 rounded-2xl p-4 sm:p-5 shadow-xs space-y-3">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5">
               <div>
-                <h2 className="text-sm sm:text-base font-bold text-slate-900">
+                <h2 className="text-xs font-black text-slate-900 uppercase tracking-wider">
                   Revenue Trend
                 </h2>
-                <span className="text-[10px] text-slate-400 capitalize block">
+                <span className="text-[10px] text-slate-400 capitalize block mt-0.5">
                   {period === 'today' ? 'Hourly breakdown' : period === 'weekly' ? 'Daily breakdown' : 'Monthly timeline'}
                 </span>
               </div>
 
               {/* Horizontally scrollable category filter pills */}
-              <div className="flex items-center gap-1 bg-slate-100/80 p-0.5 rounded-xl border border-slate-200/70 text-[11px] overflow-x-auto no-scrollbar">
+              <div className="flex items-center gap-1 bg-slate-100/80 p-0.5 rounded-xl border border-slate-200/70 text-xxs overflow-x-auto no-scrollbar">
                 <button
+                  type="button"
                   onClick={() => setActiveCategoryFilter('TOTAL')}
                   className={`px-2.5 py-1 rounded-lg font-bold transition-all whitespace-nowrap cursor-pointer ${
                     activeCategoryFilter === 'TOTAL'
-                      ? 'bg-rose-50 text-[#D94949] border border-rose-200 shadow-2xs'
+                      ? 'bg-rose-50 text-[#D94949] border border-rose-200 shadow-xxs'
                       : 'text-slate-500 hover:text-slate-900'
                   }`}
                 >
                   Total
                 </button>
                 <button
+                  type="button"
                   onClick={() => setActiveCategoryFilter('FOOD')}
                   className={`px-2.5 py-1 rounded-lg font-bold transition-all whitespace-nowrap cursor-pointer ${
                     activeCategoryFilter === 'FOOD'
-                      ? 'bg-rose-50 text-[#D94949] border border-rose-200 shadow-2xs'
+                      ? 'bg-rose-50 text-[#D94949] border border-rose-200 shadow-xxs'
                       : 'text-slate-500 hover:text-slate-900'
                   }`}
                 >
                   Food
                 </button>
                 <button
+                  type="button"
                   onClick={() => setActiveCategoryFilter('TRAMPOLINE')}
                   className={`px-2.5 py-1 rounded-lg font-bold transition-all whitespace-nowrap cursor-pointer ${
                     activeCategoryFilter === 'TRAMPOLINE'
-                      ? 'bg-rose-50 text-[#D94949] border border-rose-200 shadow-2xs'
+                      ? 'bg-rose-50 text-[#D94949] border border-rose-200 shadow-xxs'
                       : 'text-slate-500 hover:text-slate-900'
                   }`}
                 >
                   Trampoline
                 </button>
                 <button
+                  type="button"
                   onClick={() => setActiveCategoryFilter('COIN_GAMES')}
                   className={`px-2.5 py-1 rounded-lg font-bold transition-all whitespace-nowrap cursor-pointer ${
                     activeCategoryFilter === 'COIN_GAMES'
-                      ? 'bg-rose-50 text-[#D94949] border border-rose-200 shadow-2xs'
+                      ? 'bg-rose-50 text-[#D94949] border border-rose-200 shadow-xxs'
                       : 'text-slate-500 hover:text-slate-900'
                   }`}
                 >
@@ -736,7 +732,7 @@ export function AdminDashboardView() {
                 >
                   <defs>
                     <linearGradient id="mobileTrendGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#D94949" stopOpacity="0.22" />
+                      <stop offset="0%" stopColor="#D94949" stopOpacity="0.20" />
                       <stop offset="100%" stopColor="#D94949" stopOpacity="0.0" />
                     </linearGradient>
                   </defs>
@@ -757,7 +753,7 @@ export function AdminDashboardView() {
                         x="40"
                         y={tick.y + 3}
                         textAnchor="end"
-                        className="text-[9px] fill-slate-400 font-sans font-medium"
+                        className="text-[9px] fill-slate-400 font-mono font-medium"
                       >
                         {tick.val.toLocaleString()}
                       </text>
@@ -816,7 +812,7 @@ export function AdminDashboardView() {
                       x={lbl.x}
                       y={chartConfig.height - 10}
                       textAnchor="middle"
-                      className="text-[10px] font-medium fill-slate-400"
+                      className="text-[10px] font-medium fill-slate-400 font-mono"
                     >
                       {lbl.label}
                     </text>
@@ -833,13 +829,13 @@ export function AdminDashboardView() {
                     top: `${Math.max(10, (activeTooltipPoint.y / chartConfig.height) * 100 - 8)}%`,
                   }}
                 >
-                  <span className="text-[10px] text-slate-400 font-semibold block leading-tight">
+                  <span className="text-[10px] text-slate-400 font-semibold block leading-tight font-mono">
                     {activeTooltipPoint.item.date}
                   </span>
-                  <span className="text-xs font-black text-slate-900 block leading-tight">
+                  <span className="text-xs font-black text-slate-900 block leading-tight font-mono">
                     ₹{activeTooltipPoint.val.toLocaleString()}
                   </span>
-                  <span className="text-[9px] text-slate-500 font-medium block">
+                  <span className="text-[9px] text-slate-500 font-medium block font-mono">
                     {activeTooltipPoint.item.transactions || 0} orders
                   </span>
                 </div>
@@ -847,21 +843,21 @@ export function AdminDashboardView() {
             </div>
           </div>
 
-          {/* DESKTOP EXCLUSIVE: CATEGORY DEEP DIVE SECTION (Hidden on mobile) */}
+          {/* DESKTOP EXCLUSIVE: CATEGORY DEEP DIVE SECTION */}
           <div className="hidden md:grid md:grid-cols-2 gap-4">
             {/* TRAMPOLINE DEEP-DIVE CARD */}
             <div className="bg-white border border-slate-200/80 rounded-2xl p-4 sm:p-5 shadow-xs space-y-3">
               <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
                 <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
-                    <MdSportsGymnastics className="h-4 w-4" />
+                  <div className="w-8 h-8 rounded-xl bg-emerald-50 text-[#009966] flex items-center justify-center font-bold">
+                    <Activity className="h-4 w-4" />
                   </div>
                   <div>
-                    <h3 className="text-xs font-bold text-slate-900">Trampoline Insights</h3>
-                    <p className="text-[10px] text-slate-400">Jumping sessions & guest mix</p>
+                    <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider">Trampoline Insights</h3>
+                    <p className="text-[10px] text-slate-400 font-medium">Jumping sessions & guest mix</p>
                   </div>
                 </div>
-                <span className="text-xs font-black text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-100">
+                <span className="text-xs font-black text-[#009966] bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-200 font-mono">
                   ₹{kpis.trampolineSales.toLocaleString()}
                 </span>
               </div>
@@ -869,19 +865,19 @@ export function AdminDashboardView() {
               <div className="grid grid-cols-3 gap-2 text-center">
                 <div className="p-2 bg-slate-50 rounded-xl">
                   <span className="text-[10px] text-slate-400 block font-medium">Sessions</span>
-                  <span className="text-sm font-black text-slate-800">
+                  <span className="text-sm font-black text-slate-800 font-mono">
                     {data.trampolineAnalytics?.sessions || kpis.trampolineSessionsCount}
                   </span>
                 </div>
                 <div className="p-2 bg-slate-50 rounded-xl">
                   <span className="text-[10px] text-slate-400 block font-medium">Adults / Kids</span>
-                  <span className="text-sm font-black text-slate-800">
+                  <span className="text-sm font-black text-slate-800 font-mono">
                     {data.trampolineAnalytics?.adults || 0} / {data.trampolineAnalytics?.children || 0}
                   </span>
                 </div>
                 <div className="p-2 bg-slate-50 rounded-xl">
                   <span className="text-[10px] text-slate-400 block font-medium">Avg Session</span>
-                  <span className="text-sm font-black text-slate-800">
+                  <span className="text-sm font-black text-slate-800 font-mono">
                     ₹{data.trampolineAnalytics?.averageSessionValue || (kpis.trampolineSessionsCount > 0 ? Math.round(kpis.trampolineSales / kpis.trampolineSessionsCount) : 0)}
                   </span>
                 </div>
@@ -893,14 +889,14 @@ export function AdminDashboardView() {
               <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
                 <div className="flex items-center gap-2">
                   <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold">
-                    <FaCoins className="h-4 w-4" />
+                    <Coins className="h-4 w-4" />
                   </div>
                   <div>
-                    <h3 className="text-xs font-bold text-slate-900">Coin Tokens & Packs</h3>
-                    <p className="text-[10px] text-slate-400">Token packages sold</p>
+                    <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider">Coin Tokens & Packs</h3>
+                    <p className="text-[10px] text-slate-400 font-medium">Token packages sold</p>
                   </div>
                 </div>
-                <span className="text-xs font-black text-amber-700 bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-100">
+                <span className="text-xs font-black text-amber-700 bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-200 font-mono">
                   ₹{kpis.coinGamesSales.toLocaleString()}
                 </span>
               </div>
@@ -908,16 +904,16 @@ export function AdminDashboardView() {
               <div className="space-y-1.5">
                 {data.coinGameAnalytics?.packages && data.coinGameAnalytics.packages.length > 0 ? (
                   data.coinGameAnalytics.packages.map((pkg, idx) => (
-                    <div key={idx} className="flex items-center justify-between text-xs py-1 px-2 rounded-lg bg-slate-50/70">
+                    <div key={idx} className="flex items-center justify-between text-xs py-1.5 px-2.5 rounded-xl bg-slate-50/70 border border-slate-100">
                       <span className="font-semibold text-slate-700 text-xxs">{pkg.name}</span>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 font-mono">
                         <span className="text-[10px] text-slate-400 font-medium">{pkg.sales} sales</span>
                         <span className="font-bold text-slate-900 text-xxs">₹{pkg.revenue.toLocaleString()}</span>
                       </div>
                     </div>
                   ))
                 ) : (
-                  <div className="text-center py-2 text-[11px] text-slate-400">
+                  <div className="text-center py-2 text-[11px] text-slate-400 font-mono">
                     {kpis.coinGamesTransactionsCount} coin sales recorded
                   </div>
                 )}
@@ -929,14 +925,14 @@ export function AdminDashboardView() {
               <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
                 <div className="flex items-center gap-2">
                   <div className="w-8 h-8 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center font-bold">
-                    <FaUtensils className="h-4 w-4" />
+                    <UtensilsCrossed className="h-4 w-4" />
                   </div>
                   <div>
-                    <h3 className="text-xs font-bold text-slate-900">Top Selling Food</h3>
-                    <p className="text-[10px] text-slate-400">Best performing menu dishes</p>
+                    <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider">Top Selling Food</h3>
+                    <p className="text-[10px] text-slate-400 font-medium">Best performing menu dishes</p>
                   </div>
                 </div>
-                <span className="text-xs font-black text-sky-700 bg-sky-50 px-2 py-0.5 rounded-lg border border-sky-100">
+                <span className="text-xs font-black text-sky-700 bg-sky-50 px-2 py-0.5 rounded-lg border border-sky-100 font-mono">
                   {data.foodAnalytics?.orders || kpis.foodOrdersCount} Orders
                 </span>
               </div>
@@ -944,18 +940,18 @@ export function AdminDashboardView() {
               <div className="space-y-1.5">
                 {data.foodAnalytics?.topItems && data.foodAnalytics.topItems.length > 0 ? (
                   data.foodAnalytics.topItems.slice(0, 3).map((item, idx) => (
-                    <div key={idx} className="flex items-center justify-between text-xs py-1 px-2 rounded-lg bg-slate-50/70">
+                    <div key={idx} className="flex items-center justify-between text-xs py-1.5 px-2.5 rounded-xl bg-slate-50/70 border border-slate-100">
                       <span className="font-semibold text-slate-700 truncate max-w-[140px] text-xxs">
                         {item.name}
                       </span>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 font-mono">
                         <span className="text-[10px] text-slate-400 font-medium">{item.quantity} qty</span>
                         <span className="font-bold text-slate-900 text-xxs">₹{item.revenue.toLocaleString()}</span>
                       </div>
                     </div>
                   ))
                 ) : (
-                  <div className="text-center py-2 text-[11px] text-slate-400">
+                  <div className="text-center py-2 text-[11px] text-slate-400 font-mono">
                     No food sales items in this period
                   </div>
                 )}
@@ -967,23 +963,23 @@ export function AdminDashboardView() {
               <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
                 <div className="flex items-center gap-2">
                   <div className="w-8 h-8 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center font-bold">
-                    <FaCreditCard className="h-4 w-4" />
+                    <CreditCard className="h-4 w-4" />
                   </div>
                   <div>
-                    <h3 className="text-xs font-bold text-slate-900">Payment Channels</h3>
-                    <p className="text-[10px] text-slate-400">Settlement mode split</p>
+                    <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider">Payment Channels</h3>
+                    <p className="text-[10px] text-slate-400 font-medium">Settlement mode split</p>
                   </div>
                 </div>
-                <span className="text-xs font-black text-purple-700 bg-purple-50 px-2 py-0.5 rounded-lg border border-purple-100">
+                <span className="text-xs font-black text-purple-700 bg-purple-50 px-2 py-0.5 rounded-lg border border-purple-100 font-mono">
                   ₹{kpis.totalRevenue.toLocaleString()}
                 </span>
               </div>
 
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-2 gap-2 font-mono">
                 <div className="p-2 bg-slate-50 rounded-xl">
                   <div className="flex items-center justify-between text-[10px] text-slate-500 font-bold mb-0.5">
                     <span>UPI / QR</span>
-                    <span className="text-emerald-600">
+                    <span className="text-[#009966]">
                       {kpis.totalRevenue > 0
                         ? `${Math.round(((data.paymentMethods?.upi || 0) / kpis.totalRevenue) * 100)}%`
                         : '0%'}
@@ -1015,10 +1011,10 @@ export function AdminDashboardView() {
           <div className="bg-white border border-slate-200/80 rounded-2xl p-4 sm:p-5 shadow-xs space-y-3.5">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-sm sm:text-base font-bold text-slate-900">
+                <h2 className="text-xs font-black text-slate-900 uppercase tracking-wider">
                   Recent Transactions
                 </h2>
-                <span className="text-[10px] text-slate-400 block">
+                <span className="text-[10px] text-slate-400 block mt-0.5">
                   Latest customer orders and game sessions
                 </span>
               </div>
@@ -1029,7 +1025,7 @@ export function AdminDashboardView() {
                   className="text-[11px] font-bold text-[#D94949] hover:underline flex items-center gap-1"
                 >
                   <span>Games</span>
-                  <FaArrowRight className="h-2.5 w-2.5" />
+                  <ArrowRight className="h-3 w-3" />
                 </Link>
                 <span className="text-slate-300">•</span>
                 <Link
@@ -1037,7 +1033,7 @@ export function AdminDashboardView() {
                   className="text-[11px] font-bold text-sky-600 hover:underline flex items-center gap-1"
                 >
                   <span>Food</span>
-                  <FaArrowRight className="h-2.5 w-2.5" />
+                  <ArrowRight className="h-3 w-3" />
                 </Link>
               </div>
             </div>
@@ -1058,16 +1054,16 @@ export function AdminDashboardView() {
                 <tbody className="divide-y divide-slate-100 text-slate-700">
                   {!recentTransactions || recentTransactions.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="px-3 py-6 text-center text-slate-400 text-xs">
+                      <td colSpan={7} className="px-3 py-6 text-center text-slate-400 text-xs font-mono">
                         No transactions recorded for this period.
                       </td>
                     </tr>
                   ) : (
                     recentTransactions.slice(0, 8).map((tx) => (
                       <tr key={tx.id} className="hover:bg-slate-50/50 font-medium transition-colors">
-                        <td className="px-3 py-2.5 text-slate-500 whitespace-nowrap text-xxs">
+                        <td className="px-3 py-2.5 text-slate-500 whitespace-nowrap text-xxs font-mono">
                           <span className="flex items-center gap-1">
-                            <FaClock className="h-2.5 w-2.5 text-slate-400" />
+                            <Clock className="h-3 w-3 text-slate-400" />
                             <span>
                               {new Date(tx.time).toLocaleTimeString([], {
                                 hour: '2-digit',
@@ -1077,26 +1073,26 @@ export function AdminDashboardView() {
                           </span>
                         </td>
 
-                        <td className="px-3 py-2.5 font-bold text-slate-900 whitespace-nowrap text-xxs">
+                        <td className="px-3 py-2.5 font-bold text-slate-900 whitespace-nowrap text-xs">
                           {tx.customer}
                         </td>
 
                         <td className="px-3 py-2.5 whitespace-nowrap">
                           {tx.category === 'TRAMPOLINE' && (
-                            <span className="px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-[#D94949]/10 text-[#D94949] border border-[#D94949]/20 inline-flex items-center gap-1">
-                              <MdSportsGymnastics className="h-2.5 w-2.5" />
+                            <span className="px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-rose-50 text-[#D94949] border border-rose-200 inline-flex items-center gap-1 font-mono">
+                              <Activity className="h-3 w-3" />
                               <span>Trampoline</span>
                             </span>
                           )}
                           {tx.category === 'COIN_GAMES' && (
-                            <span className="px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 inline-flex items-center gap-1">
-                              <FaCoins className="h-2.5 w-2.5" />
+                            <span className="px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 inline-flex items-center gap-1 font-mono">
+                              <Coins className="h-3 w-3" />
                               <span>Coin Games</span>
                             </span>
                           )}
                           {tx.category === 'FOOD' && (
-                            <span className="px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-sky-50 text-sky-700 border border-sky-200 inline-flex items-center gap-1">
-                              <FaUtensils className="h-2.5 w-2.5" />
+                            <span className="px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-sky-50 text-sky-700 border border-sky-200 inline-flex items-center gap-1 font-mono">
+                              <UtensilsCrossed className="h-3 w-3" />
                               <span>Food</span>
                             </span>
                           )}
@@ -1106,26 +1102,21 @@ export function AdminDashboardView() {
                           {tx.details}
                         </td>
 
-                        <td className="px-3 py-2.5 font-bold text-slate-900 whitespace-nowrap text-xxs">
+                        <td className="px-3 py-2.5 font-bold text-slate-900 whitespace-nowrap text-xs font-mono tabular-nums">
                           ₹{tx.amount.toLocaleString()}
                         </td>
 
                         <td className="px-3 py-2.5 whitespace-nowrap">
-                          <span className="text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded bg-slate-100 text-slate-700">
+                          <span className="text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 font-mono">
                             {tx.paymentMethod}
                           </span>
                         </td>
 
                         <td className="px-3 py-2.5 text-right whitespace-nowrap">
-                          <span
-                            className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full uppercase ${
-                              tx.status === 'COMPLETED'
-                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                : 'bg-blue-50 text-blue-700 border border-blue-200'
-                            }`}
-                          >
-                            {tx.status}
-                          </span>
+                          <StatusBadge
+                            status={tx.status}
+                            size="sm"
+                          />
                         </td>
                       </tr>
                     ))
@@ -1141,10 +1132,10 @@ export function AdminDashboardView() {
           {/* SALES BREAKDOWN CARD */}
           <div className="bg-white border border-slate-200/80 rounded-2xl p-4 sm:p-5 shadow-xs space-y-3.5">
             <div className="flex items-center justify-between">
-              <h2 className="text-sm sm:text-base font-bold text-slate-900">
+              <h2 className="text-xs font-black text-slate-900 uppercase tracking-wider">
                 Sales Breakdown
               </h2>
-              <span className="text-[10px] font-bold text-slate-400">
+              <span className="text-[10px] font-bold text-slate-400 uppercase font-mono">
                 Contribution %
               </span>
             </div>
@@ -1153,7 +1144,7 @@ export function AdminDashboardView() {
               {/* FOOD ROW */}
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center font-bold shrink-0">
-                  <FaUtensils className="h-3.5 w-3.5" />
+                  <UtensilsCrossed className="h-4 w-4" />
                 </div>
                 <span className="text-xs font-bold text-slate-800 w-20 shrink-0">Food</span>
                 <div className="flex-1 h-3 bg-slate-100 rounded-full overflow-hidden">
@@ -1162,18 +1153,18 @@ export function AdminDashboardView() {
                     style={{ width: `${Math.min(100, kpis.mix.food)}%` }}
                   />
                 </div>
-                <span className="text-xs font-medium text-slate-400 w-12 text-right shrink-0">
+                <span className="text-xs font-medium text-slate-400 w-12 text-right shrink-0 font-mono">
                   {kpis.mix.food}%
                 </span>
-                <span className="text-xs sm:text-sm font-black text-slate-900 w-16 text-right shrink-0">
+                <span className="text-xs sm:text-sm font-black text-slate-900 w-16 text-right shrink-0 font-mono tabular-nums">
                   ₹{kpis.foodSales.toLocaleString()}
                 </span>
               </div>
 
               {/* TRAMPOLINE ROW */}
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold shrink-0">
-                  <MdSportsGymnastics className="h-4 w-4" />
+                <div className="w-8 h-8 rounded-xl bg-emerald-50 text-[#009966] flex items-center justify-center font-bold shrink-0">
+                  <Activity className="h-4 w-4" />
                 </div>
                 <span className="text-xs font-bold text-slate-800 w-20 shrink-0">Trampoline</span>
                 <div className="flex-1 h-3 bg-slate-100 rounded-full overflow-hidden">
@@ -1182,10 +1173,10 @@ export function AdminDashboardView() {
                     style={{ width: `${Math.min(100, kpis.mix.trampoline)}%` }}
                   />
                 </div>
-                <span className="text-xs font-medium text-slate-400 w-12 text-right shrink-0">
+                <span className="text-xs font-medium text-slate-400 w-12 text-right shrink-0 font-mono">
                   {kpis.mix.trampoline}%
                 </span>
-                <span className="text-xs sm:text-sm font-black text-slate-900 w-16 text-right shrink-0">
+                <span className="text-xs sm:text-sm font-black text-slate-900 w-16 text-right shrink-0 font-mono tabular-nums">
                   ₹{kpis.trampolineSales.toLocaleString()}
                 </span>
               </div>
@@ -1193,7 +1184,7 @@ export function AdminDashboardView() {
               {/* COIN GAMES ROW */}
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold shrink-0">
-                  <FaCoins className="h-3.5 w-3.5" />
+                  <Coins className="h-4 w-4" />
                 </div>
                 <span className="text-xs font-bold text-slate-800 w-20 shrink-0">Coin Games</span>
                 <div className="flex-1 h-3 bg-slate-100 rounded-full overflow-hidden">
@@ -1202,10 +1193,10 @@ export function AdminDashboardView() {
                     style={{ width: `${Math.min(100, kpis.mix.coinGames)}%` }}
                   />
                 </div>
-                <span className="text-xs font-medium text-slate-400 w-12 text-right shrink-0">
+                <span className="text-xs font-medium text-slate-400 w-12 text-right shrink-0 font-mono">
                   {kpis.mix.coinGames}%
                 </span>
-                <span className="text-xs sm:text-sm font-black text-slate-900 w-16 text-right shrink-0">
+                <span className="text-xs sm:text-sm font-black text-slate-900 w-16 text-right shrink-0 font-mono tabular-nums">
                   ₹{kpis.coinGamesSales.toLocaleString()}
                 </span>
               </div>
@@ -1215,11 +1206,11 @@ export function AdminDashboardView() {
           {/* TODAY'S SUMMARY CARD */}
           <div className="bg-white border border-slate-200/80 rounded-2xl p-4 sm:p-5 shadow-xs space-y-3.5">
             <div className="flex items-center justify-between">
-              <h2 className="text-sm sm:text-base font-bold text-slate-900">
+              <h2 className="text-xs font-black text-slate-900 uppercase tracking-wider">
                 Today&apos;s Summary
               </h2>
-              <span className="flex items-center gap-1.5 px-2.5 py-1 bg-rose-50 text-[#D94949] border border-rose-100 rounded-lg text-xxs font-bold">
-                <FaCalendarDays className="h-3 w-3" />
+              <span className="flex items-center gap-1.5 px-2.5 py-1 bg-rose-50 text-[#D94949] border border-rose-100 rounded-lg text-xxs font-bold font-mono">
+                <Calendar className="h-3 w-3" />
                 <span>{todayFormatted}</span>
               </span>
             </div>
@@ -1228,13 +1219,13 @@ export function AdminDashboardView() {
               {/* Revenue */}
               <div className="p-3 bg-white border border-slate-200/70 rounded-2xl flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-xl bg-rose-50 text-[#D94949] flex items-center justify-center font-bold shrink-0">
-                  <FaChartSimple className="h-4 w-4" />
+                  <BarChart3 className="h-4 w-4" />
                 </div>
                 <div>
                   <span className="text-[10px] font-bold text-slate-400 uppercase block leading-tight">
                     Revenue
                   </span>
-                  <span className="text-sm sm:text-base font-black text-slate-900 leading-tight">
+                  <span className="text-sm sm:text-base font-black text-slate-900 leading-tight font-mono tabular-nums">
                     ₹{todaySummary.totalRevenue.toLocaleString()}
                   </span>
                 </div>
@@ -1243,13 +1234,13 @@ export function AdminDashboardView() {
               {/* Transactions */}
               <div className="p-3 bg-white border border-slate-200/70 rounded-2xl flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center font-bold shrink-0">
-                  <FaCartShopping className="h-3.5 w-3.5" />
+                  <ShoppingBag className="h-4 w-4" />
                 </div>
                 <div>
                   <span className="text-[10px] font-bold text-slate-400 uppercase block leading-tight">
                     Transactions
                   </span>
-                  <span className="text-sm sm:text-base font-black text-slate-900 leading-tight">
+                  <span className="text-sm sm:text-base font-black text-slate-900 leading-tight font-mono tabular-nums">
                     {todaySummary.transactions}
                   </span>
                 </div>
@@ -1258,13 +1249,13 @@ export function AdminDashboardView() {
               {/* Food Orders */}
               <div className="p-3 bg-white border border-slate-200/70 rounded-2xl flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center font-bold shrink-0">
-                  <FaUtensils className="h-3.5 w-3.5" />
+                  <UtensilsCrossed className="h-4 w-4" />
                 </div>
                 <div>
                   <span className="text-[10px] font-bold text-slate-400 uppercase block leading-tight">
                     Food Orders
                   </span>
-                  <span className="text-sm sm:text-base font-black text-slate-900 leading-tight">
+                  <span className="text-sm sm:text-base font-black text-slate-900 leading-tight font-mono tabular-nums">
                     {data.foodAnalytics?.orders || kpis.foodOrdersCount || 0}
                   </span>
                 </div>
@@ -1272,14 +1263,14 @@ export function AdminDashboardView() {
 
               {/* Sessions */}
               <div className="p-3 bg-white border border-slate-200/70 rounded-2xl flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold shrink-0">
-                  <FaUserGroup className="h-3.5 w-3.5" />
+                <div className="w-8 h-8 rounded-xl bg-emerald-50 text-[#009966] flex items-center justify-center font-bold shrink-0">
+                  <Users className="h-4 w-4" />
                 </div>
                 <div>
                   <span className="text-[10px] font-bold text-slate-400 uppercase block leading-tight">
                     Sessions
                   </span>
-                  <span className="text-sm sm:text-base font-black text-slate-900 leading-tight">
+                  <span className="text-sm sm:text-base font-black text-slate-900 leading-tight font-mono tabular-nums">
                     {todaySummary.activeSessions + todaySummary.completedSessions}
                   </span>
                 </div>
@@ -1287,19 +1278,19 @@ export function AdminDashboardView() {
             </div>
           </div>
 
-          {/* DESKTOP QUICK ACTIONS & OPERATIONS (Hidden on mobile) */}
+          {/* DESKTOP QUICK ACTIONS & OPERATIONS */}
           <div className="hidden md:block bg-white border border-slate-200/80 rounded-2xl p-4 sm:p-5 shadow-xs space-y-3">
-            <h2 className="text-sm sm:text-base font-bold text-slate-900">
+            <h2 className="text-xs font-black text-slate-900 uppercase tracking-wider">
               Quick POS Actions
             </h2>
             <div className="grid grid-cols-2 gap-2.5">
               <Link
                 href="/games/sessions/new"
-                className="p-3 rounded-xl border border-rose-100 bg-rose-50/60 hover:bg-rose-100/80 text-[#D94949] transition-all flex flex-col gap-1.5"
+                className="p-3.5 rounded-xl border border-rose-100 bg-rose-50/60 hover:bg-rose-100/80 text-[#D94949] transition-all flex flex-col gap-1.5"
               >
                 <div className="flex items-center justify-between">
-                  <MdSportsGymnastics className="h-5 w-5" />
-                  <FaArrowRight className="h-3 w-3" />
+                  <Activity className="h-5 w-5" />
+                  <ArrowRight className="h-3.5 w-3.5" />
                 </div>
                 <span className="text-xs font-bold leading-tight">New Game Session</span>
                 <span className="text-[10px] text-rose-500/80 leading-tight">Trampoline & Coins</span>
@@ -1307,11 +1298,11 @@ export function AdminDashboardView() {
 
               <Link
                 href="/pos"
-                className="p-3 rounded-xl border border-sky-100 bg-sky-50/60 hover:bg-sky-100/80 text-sky-700 transition-all flex flex-col gap-1.5"
+                className="p-3.5 rounded-xl border border-sky-100 bg-sky-50/60 hover:bg-sky-100/80 text-sky-700 transition-all flex flex-col gap-1.5"
               >
                 <div className="flex items-center justify-between">
-                  <FaUtensils className="h-4 w-4" />
-                  <FaArrowRight className="h-3 w-3" />
+                  <UtensilsCrossed className="h-5 w-5" />
+                  <ArrowRight className="h-3.5 w-3.5" />
                 </div>
                 <span className="text-xs font-bold leading-tight">Food POS Billing</span>
                 <span className="text-[10px] text-sky-500 leading-tight">Kitchen & Dine-in</span>
@@ -1333,4 +1324,3 @@ export default function DashboardPage() {
 
   return <AdminDashboardView />;
 }
-
