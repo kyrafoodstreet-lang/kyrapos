@@ -140,17 +140,8 @@ export default function GameSessions() {
 
   const openCheckout = (s: Session) => {
     setSelectedSessionId(s.id);
-    // calculate default overtime charges
-    const overtime = getOvertimeMinutes(s);
-    const pDur = s.pricing?.duration || s.duration || 30;
-    const pPrice = s.pricing?.price ? Number(s.pricing.price) : Number(s.originalPrice);
-    let defaultExtra = 0;
-    if (overtime > 5 && pDur > 0) {
-      const baseRate = pPrice / pDur;
-      defaultExtra = Math.round(baseRate * overtime);
-    }
-    
-    setExtraCharges(defaultExtra);
+    // Overtime is for visual monitoring/indication only — do not auto-increase charges
+    setExtraCharges(0);
     setClosingDiscount(0);
     setAmountPaid(0);
     setIsCheckoutOpen(true);
