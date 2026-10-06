@@ -99,29 +99,32 @@ export default function GamesDashboard() {
   ];
 
   return (
-    <div className="space-y-8 max-w-7xl mx-auto">
+    <div className="space-y-6 max-w-7xl mx-auto pb-12">
       {/* Header Banner */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200 shadow-xs">
-        <div>
-          <h1 className="text-xl font-bold text-slate-800 flex items-center gap-2">
-            <Gamepad2 className="h-5.5 w-5.5 text-[#D94949]" />
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-white p-6 rounded-3xl border border-slate-200/90 shadow-xs relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-80 h-80 bg-rose-50/40 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none" />
+        <div className="relative z-10">
+          <h1 className="text-xl sm:text-2xl font-black text-slate-900 flex items-center gap-2.5 tracking-tight">
+            <div className="w-10 h-10 rounded-2xl bg-rose-50 border border-rose-200 text-[#D94949] flex items-center justify-center">
+              <Gamepad2 className="h-5.5 w-5.5" />
+            </div>
             <span>Games Dashboard</span>
           </h1>
-          <p className="text-xs text-slate-500 mt-1">
+          <p className="text-xs text-slate-500 font-medium mt-1">
             Real-time occupancy status, revenue totals, and checking lists for active and completed guest sessions.
           </p>
         </div>
-        <div className="flex gap-2.5 shrink-0 flex-wrap">
+        <div className="flex gap-2.5 shrink-0 flex-wrap relative z-10">
           <button
             onClick={() => router.push('/games/closing-report')}
-            className="px-4 py-2.5 bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs rounded-xl shadow-xs hover:shadow transition-all flex items-center gap-1.5 cursor-pointer"
+            className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs rounded-2xl border border-slate-200 shadow-2xs transition-all flex items-center gap-1.5 cursor-pointer"
           >
-            <CalendarCheck className="h-3.5 w-3.5" />
+            <CalendarCheck className="h-3.5 w-3.5 text-slate-600" />
             <span>Day Close</span>
           </button>
           <button
             onClick={() => router.push('/games/sessions/new')}
-            className="px-5 py-2.5 bg-[#D94949] hover:bg-[#C53B3B] text-white font-bold text-xs rounded-xl shadow-xs hover:shadow transition-all flex items-center gap-1.5 cursor-pointer"
+            className="px-5 py-2.5 bg-[#D94949] hover:bg-[#C53B3B] text-white font-black text-xs rounded-2xl shadow-sm hover:shadow transition-all flex items-center gap-1.5 cursor-pointer active:scale-[0.98]"
           >
             <Play className="h-3.5 w-3.5 fill-current" />
             <span>New Game Session</span>
@@ -130,16 +133,16 @@ export default function GamesDashboard() {
       </div>
 
       {/* KPI Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6">
+      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3.5 sm:gap-4">
         {cardData.map((card, idx) => {
           const Icon = card.icon;
           return (
-            <div key={idx} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col justify-between gap-3 hover:shadow-sm transition-shadow">
-              <span className="text-xxs font-bold text-slate-400 uppercase tracking-wider">{card.title}</span>
+            <div key={idx} className="bg-white p-4 sm:p-5 rounded-3xl border border-slate-200/90 shadow-xs flex flex-col justify-between gap-2.5 hover:shadow-sm hover:border-slate-300 transition-all">
+              <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">{card.title}</span>
               <div className="flex items-center justify-between">
-                <span className="text-sm font-bold text-slate-800 tracking-tight">{card.value}</span>
-                <div className={`h-8 w-8 rounded-xl flex items-center justify-center border ${card.color}`}>
-                  <Icon className="h-4.5 w-4.5" />
+                <span className="text-base sm:text-lg font-black text-slate-900 tracking-tight">{card.value}</span>
+                <div className={`h-8 w-8 rounded-xl flex items-center justify-center border shrink-0 ${card.color}`}>
+                  <Icon className="h-4 w-4" />
                 </div>
               </div>
             </div>

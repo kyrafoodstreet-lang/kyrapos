@@ -32,7 +32,8 @@ import {
   Printer,
   RefreshCw,
   Pause,
-  RotateCcw
+  RotateCcw,
+  ArrowRight,
 } from 'lucide-react';
 
 interface Category {
@@ -637,6 +638,20 @@ export default function POSPage() {
               <User className="h-4 w-4 text-slate-450" />
               <span className="font-medium hidden sm:inline">{user.name}</span>
             </div>
+
+            {/* Mobile Cart Button */}
+            <button
+              onClick={() => setShowMobileCart(true)}
+              className="lg:hidden relative p-2 bg-rose-50 hover:bg-rose-100 text-[#D94949] rounded-xl border border-rose-200 transition cursor-pointer"
+              title="Open Cart"
+            >
+              <ShoppingCart className="h-5 w-5" />
+              {cart.items.length > 0 && (
+                <span className="absolute -top-1 -right-1 h-4 w-4 bg-[#D94949] text-white text-[10px] font-black rounded-full flex items-center justify-center">
+                  {cart.items.reduce((s, i) => s + i.quantity, 0)}
+                </span>
+              )}
+            </button>
           </div>
         </header>
 
@@ -706,6 +721,28 @@ export default function POSPage() {
               </div>
             )}
           </main>
+
+          {/* Mobile Bottom Bar for Cart Quick Checkout */}
+          {cart.items.length > 0 && (
+            <div className="lg:hidden p-3 bg-white border-t border-slate-200 shrink-0 shadow-lg">
+              <button
+                onClick={() => setShowMobileCart(true)}
+                className="w-full flex items-center justify-between px-4 py-3 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl shadow-md cursor-pointer active:scale-[0.99] transition-all font-bold"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="px-2 py-0.5 rounded-full bg-rose-500 text-white text-xs font-black">
+                    {cart.items.reduce((sum, item) => sum + item.quantity, 0)} items
+                  </span>
+                  <span className="text-xs text-slate-300">Total:</span>
+                  <span className="text-sm font-black text-white">₹{grandTotal.toFixed(2)}</span>
+                </div>
+                <div className="flex items-center gap-1 text-xs text-rose-400 font-extrabold">
+                  <span>View Cart & Pay</span>
+                  <ArrowRight className="h-4 w-4" />
+                </div>
+              </button>
+            </div>
+          )}
         </div>
       </div>
 

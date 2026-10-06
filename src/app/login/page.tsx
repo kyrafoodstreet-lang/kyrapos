@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, ShieldCheck, ShieldAlert, Shield, Lock, Mail, ArrowRight, Loader } from 'lucide-react';
 import api from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
 
@@ -33,11 +33,24 @@ export default function LoginPage() {
   } = useForm<LoginSchema>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
+      email: '',
+      password: '',
       alwaysLogin: true,
     },
   });
 
-  const alwaysLogin = watch('alwaysLogin', true);
+  const fillDemoAccount = (role: 'ADMIN' | 'MANAGER' | 'CASHIER') => {
+    if (role === 'ADMIN') {
+      setValue('email', 'admin@kyra.com');
+      setValue('password', 'adminpassword');
+    } else if (role === 'MANAGER') {
+      setValue('email', 'manager@kyra.com');
+      setValue('password', 'managerpassword');
+    } else {
+      setValue('email', 'cashier@kyra.com');
+      setValue('password', 'cashierpassword');
+    }
+  };
 
   const onSubmit = async (data: LoginSchema) => {
     setError(null);
@@ -65,52 +78,99 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-50/70 px-4 py-12 sm:px-6 lg:px-8">
-      <div className="w-full max-w-sm space-y-6 bg-white border border-slate-200/80 p-8 rounded-2xl shadow-sm">
-        <div className="text-center space-y-1.5">
-          <div className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-rose-50 text-[#D94949] font-black mb-1 border border-rose-100">
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-50 via-slate-100 to-rose-50/30 px-4 py-8 sm:px-6 lg:px-8 relative overflow-hidden">
+      {/* Background Decorative Blobs */}
+      <div className="absolute -top-32 -left-32 w-96 h-96 bg-rose-200/40 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute -bottom-32 -right-32 w-96 h-96 bg-emerald-200/40 rounded-full blur-3xl pointer-events-none" />
+
+      <div className="w-full max-w-md space-y-6 bg-white/90 backdrop-blur-md border border-slate-200/90 p-6 sm:p-8 rounded-3xl shadow-xl relative z-10">
+        {/* Header */}
+        <div className="text-center space-y-2">
+          <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-rose-50 text-[#D94949] font-black text-xl mb-1 border border-rose-200 shadow-xs">
             K
           </div>
-          <h2 className="text-2xl font-bold tracking-tight text-slate-800">
-            Kyra POS
-          </h2>
+          <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900">
+            KYRA POS
+          </h1>
           <p className="text-xs text-slate-500 font-medium">
-            Sign in to start your restaurant shift
+            Next-Generation Point of Sale & Entertainment Management
           </p>
         </div>
-        
+
+        {/* Quick Demo Login Chips */}
+        <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-3 space-y-2">
+          <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block text-center">
+            Quick 1-Click Role Login
+          </span>
+          <div className="grid grid-cols-3 gap-1.5">
+            <button
+              type="button"
+              onClick={() => fillDemoAccount('ADMIN')}
+              className="px-2.5 py-1.5 bg-white hover:bg-slate-900 hover:text-white text-slate-800 text-xxs font-bold rounded-xl border border-slate-200 shadow-2xs transition-all flex items-center justify-center gap-1 cursor-pointer group"
+            >
+              <ShieldAlert className="h-3 w-3 text-rose-500 group-hover:text-rose-400" />
+              <span>Admin</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => fillDemoAccount('MANAGER')}
+              className="px-2.5 py-1.5 bg-white hover:bg-slate-900 hover:text-white text-slate-800 text-xxs font-bold rounded-xl border border-slate-200 shadow-2xs transition-all flex items-center justify-center gap-1 cursor-pointer group"
+            >
+              <ShieldCheck className="h-3 w-3 text-sky-500 group-hover:text-sky-400" />
+              <span>Manager</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => fillDemoAccount('CASHIER')}
+              className="px-2.5 py-1.5 bg-white hover:bg-slate-900 hover:text-white text-slate-800 text-xxs font-bold rounded-xl border border-slate-200 shadow-2xs transition-all flex items-center justify-center gap-1 cursor-pointer group"
+            >
+              <Shield className="h-3 w-3 text-emerald-500 group-hover:text-emerald-400" />
+              <span>Cashier</span>
+            </button>
+          </div>
+        </div>
+
         {error && (
-          <div className="rounded-xl bg-rose-50 p-3 text-xs text-rose-600 border border-rose-100 font-medium animate-fade-in">
-            {error}
+          <div className="rounded-2xl bg-rose-50 p-3.5 text-xs text-rose-700 border border-rose-200 font-bold flex items-center gap-2 animate-fade-in">
+            <ShieldAlert className="h-4 w-4 shrink-0 text-rose-600" />
+            <span>{error}</span>
           </div>
         )}
 
         <form className="space-y-4" onSubmit={handleSubmit(onSubmit)}>
           <div className="space-y-3.5">
+            {/* Email Field */}
             <div>
-              <label htmlFor="email" className="block text-xxs font-bold text-slate-500 uppercase tracking-wider mb-1">
+              <label htmlFor="email" className="block text-xxs font-extrabold text-slate-400 uppercase tracking-wider mb-1.5">
                 Email Address
               </label>
-              <input
-                id="email"
-                type="email"
-                {...register('email')}
-                className="block w-full rounded-xl border border-slate-200/90 px-3.5 py-2.5 text-slate-800 placeholder-slate-400 bg-slate-50/50 sm:text-xs font-semibold focus:bg-white focus:border-[#D94949] focus:ring-2 focus:ring-[#D94949]/15 focus:outline-none transition-all"
-                placeholder="cashier@kyra.com"
-              />
-              {errors.email ? <p className="mt-1 text-xxs text-rose-600 font-semibold">{errors.email.message?.toString()}</p> : null}
+              <div className="relative">
+                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <input
+                  id="email"
+                  type="email"
+                  {...register('email')}
+                  className="block w-full rounded-2xl border border-slate-200 pl-10 pr-3.5 py-2.5 text-slate-900 placeholder-slate-400 bg-slate-50 text-xs font-semibold focus:bg-white focus:border-slate-900 focus:outline-none transition-all"
+                  placeholder="name@kyra.com"
+                />
+              </div>
+              {errors.email && (
+                <p className="mt-1 text-xxs text-rose-600 font-bold">{errors.email.message?.toString()}</p>
+              )}
             </div>
 
+            {/* Password Field */}
             <div>
-              <label htmlFor="password" className="block text-xxs font-bold text-slate-500 uppercase tracking-wider mb-1">
+              <label htmlFor="password" className="block text-xxs font-extrabold text-slate-400 uppercase tracking-wider mb-1.5">
                 Password
               </label>
               <div className="relative">
+                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                 <input
                   id="password"
                   type={showPassword ? 'text' : 'password'}
                   {...register('password')}
-                  className="block w-full rounded-xl border border-slate-200/90 pl-3.5 pr-10 py-2.5 text-slate-800 placeholder-slate-400 bg-slate-50/50 sm:text-xs font-semibold focus:bg-white focus:border-[#D94949] focus:ring-2 focus:ring-[#D94949]/15 focus:outline-none transition-all"
+                  className="block w-full rounded-2xl border border-slate-200 pl-10 pr-10 py-2.5 text-slate-900 placeholder-slate-400 bg-slate-50 text-xs font-semibold focus:bg-white focus:border-slate-900 focus:outline-none transition-all"
                   placeholder="••••••••"
                 />
                 <button
@@ -120,38 +180,36 @@ export default function LoginPage() {
                   tabIndex={-1}
                   aria-label={showPassword ? 'Hide password' : 'Show password'}
                 >
-                  {showPassword ? (
-                    <EyeOff className="h-4 w-4" />
-                  ) : (
-                    <Eye className="h-4 w-4" />
-                  )}
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
-              {errors.password ? <p className="mt-1 text-xxs text-rose-600 font-semibold">{errors.password.message?.toString()}</p> : null}
+              {errors.password && (
+                <p className="mt-1 text-xxs text-rose-600 font-bold">{errors.password.message?.toString()}</p>
+              )}
             </div>
 
-            {/* Always Login / Keep Me Logged In Option */}
+            {/* Always Login Option */}
             <div className="pt-1">
               <label
                 htmlFor="alwaysLogin"
-                className="flex items-center justify-between p-3 rounded-xl border border-slate-200/80 bg-slate-50/70 hover:bg-slate-50 transition-colors cursor-pointer select-none group"
+                className="flex items-center justify-between p-3 rounded-2xl border border-slate-200 bg-slate-50/80 hover:bg-slate-50 transition-colors cursor-pointer select-none group"
               >
                 <div className="flex flex-col pr-2">
-                  <span className="text-xs font-bold text-slate-800 group-hover:text-slate-900 transition-colors flex items-center gap-1.5">
-                    <span>Always Login</span>
-                    <span className="text-xxs px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-bold border border-emerald-200">
-                      Persistent
+                  <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                    <span>Keep Me Signed In</span>
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-bold border border-emerald-200">
+                      Persistent Session
                     </span>
                   </span>
-                  <span className="text-xxs text-slate-450 font-medium">
-                    Do not log out until I explicitly sign out
+                  <span className="text-xxs text-slate-400 font-medium">
+                    Do not auto-expire session until signed out
                   </span>
                 </div>
                 <input
                   id="alwaysLogin"
                   type="checkbox"
                   {...register('alwaysLogin')}
-                  className="w-4 h-4 rounded border-slate-300 text-[#D94949] focus:ring-[#D94949] accent-[#D94949] cursor-pointer"
+                  className="w-4 h-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900 accent-slate-900 cursor-pointer"
                 />
               </label>
             </div>
@@ -161,9 +219,19 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full flex justify-center py-2.5 bg-[#D94949] hover:bg-[#C53B3B] text-white text-xs font-bold rounded-xl active-press transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+              className="w-full flex items-center justify-center gap-2 py-3 bg-slate-900 hover:bg-slate-800 text-white text-xs font-black rounded-2xl active:scale-[0.99] transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
             >
-              {loading ? 'Signing in...' : 'Sign In'}
+              {loading ? (
+                <>
+                  <Loader className="h-4 w-4 animate-spin text-slate-300" />
+                  <span>Signing In...</span>
+                </>
+              ) : (
+                <>
+                  <span>Sign In to POS Workspace</span>
+                  <ArrowRight className="h-4 w-4 text-slate-400" />
+                </>
+              )}
             </button>
           </div>
         </form>

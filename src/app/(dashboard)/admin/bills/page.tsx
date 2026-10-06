@@ -32,7 +32,8 @@ import {
   Coins,
   Ban,
   Download,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Lock,
 } from 'lucide-react';
 import { MdSportsGymnastics } from 'react-icons/md';
 import {
@@ -172,6 +173,7 @@ export default function AdminBillManagementPage() {
       const res = await api.get('/admin/bills', { params });
       return res.data;
     },
+    enabled: !!isAdmin,
     staleTime: 10000,
   });
 
@@ -304,6 +306,28 @@ export default function AdminBillManagementPage() {
     cancelledAmount: 0,
     paymentBreakdown: { CASH: 0, UPI: 0, CARD: 0, MIXED: 0 },
   };
+
+  // Role Access Control Guard
+  if (user && !isAdmin) {
+    return (
+      <div className="flex-1 p-8 bg-slate-50 flex items-center justify-center min-h-[80vh]">
+        <div className="max-w-md w-full bg-white p-8 rounded-3xl border border-slate-200 shadow-lg text-center flex flex-col items-center gap-4">
+          <div className="p-4 bg-rose-100 text-rose-600 rounded-2xl">
+            <Lock className="h-8 w-8" />
+          </div>
+          <div>
+            <h2 className="text-xl font-bold text-slate-900">Access Restricted</h2>
+            <p className="text-xs text-slate-500 mt-1">
+              Bill Management and ledger operations are reserved exclusively for the <span className="font-bold text-slate-700">Admin</span> role.
+            </p>
+          </div>
+          <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 w-full text-xxs font-mono text-slate-600">
+            Current Role: <span className="font-bold text-rose-600">{user?.role || 'UNKNOWN'}</span> (Access Denied)
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 flex flex-col min-w-0 bg-slate-50/50 min-h-screen pb-16">

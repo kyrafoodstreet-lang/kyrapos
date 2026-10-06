@@ -128,6 +128,9 @@ interface AdminDashboardData {
 }
 
 export function AdminDashboardView() {
+  const user = useAuthStore((state) => state.user);
+  const isAdmin = user?.role === 'ADMIN';
+
   // Period & Date Navigation State (Default to today)
   const [period, setPeriod] = useState<PeriodType>('today');
   const [referenceDate, setReferenceDate] = useState<Date>(new Date());
@@ -428,14 +431,16 @@ export function AdminDashboardView() {
               )}
             </div>
 
-            {/* Quick Access to Bill Management */}
-            <Link
-              href="/admin/bills"
-              className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-900 text-white hover:bg-slate-800 transition-all text-xs font-bold shadow-xs shrink-0"
-            >
-              <Receipt className="h-3.5 w-3.5 text-slate-300" />
-              <span>Bill Management</span>
-            </Link>
+            {/* Quick Access to Bill Management (Admin Only) */}
+            {isAdmin && (
+              <Link
+                href="/admin/bills"
+                className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-900 text-white hover:bg-slate-800 transition-all text-xs font-bold shadow-xs shrink-0"
+              >
+                <Receipt className="h-3.5 w-3.5 text-slate-300" />
+                <span>Bill Management</span>
+              </Link>
+            )}
           </div>
         }
       />

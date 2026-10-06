@@ -174,7 +174,7 @@ export default function GamesLayout({ children }: { children: React.ReactNode })
 
       {/* Sidebar Workspace Panel */}
       <aside className={`fixed inset-y-0 left-0 z-45 flex w-64 flex-col border-r border-slate-200 bg-white transition-transform duration-200 lg:static lg:translate-x-0 ${
-        sidebarOpen ? 'translate-x-0' : '-translate-x-0 lg:translate-x-0'
+        sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
       }`}>
         {/* App Logo section */}
         <div className="flex h-16 items-center gap-2.5 border-b border-slate-200 px-6 shrink-0 bg-slate-50/50">
@@ -247,7 +247,7 @@ export default function GamesLayout({ children }: { children: React.ReactNode })
         </header>
 
         {/* Scrollable Contents viewport */}
-        <main className="flex-1 overflow-y-auto bg-slate-50 p-6 md:p-8">
+        <main className="flex-1 overflow-y-auto bg-slate-50 p-3.5 sm:p-6 md:p-8">
           {children}
         </main>
       </div>
