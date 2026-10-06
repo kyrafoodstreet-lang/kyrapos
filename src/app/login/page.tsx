@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { Eye, EyeOff, ShieldCheck, ShieldAlert, Shield, Lock, Mail, ArrowRight, Loader } from 'lucide-react';
+import { Eye, EyeOff, ShieldAlert, Lock, Mail, ArrowRight, Loader } from 'lucide-react';
 import api from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
 
@@ -27,8 +27,6 @@ export default function LoginPage() {
   const {
     register,
     handleSubmit,
-    setValue,
-    watch,
     formState: { errors },
   } = useForm<LoginSchema>({
     resolver: zodResolver(loginSchema),
@@ -38,19 +36,6 @@ export default function LoginPage() {
       alwaysLogin: true,
     },
   });
-
-  const fillDemoAccount = (role: 'ADMIN' | 'MANAGER' | 'CASHIER') => {
-    if (role === 'ADMIN') {
-      setValue('email', 'admin@kyra.com');
-      setValue('password', 'adminpassword');
-    } else if (role === 'MANAGER') {
-      setValue('email', 'manager@kyra.com');
-      setValue('password', 'managerpassword');
-    } else {
-      setValue('email', 'cashier@kyra.com');
-      setValue('password', 'cashierpassword');
-    }
-  };
 
   const onSubmit = async (data: LoginSchema) => {
     setError(null);
@@ -95,39 +80,6 @@ export default function LoginPage() {
           <p className="text-xs text-slate-500 font-medium">
             Next-Generation Point of Sale & Entertainment Management
           </p>
-        </div>
-
-        {/* Quick Demo Login Chips */}
-        <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-3 space-y-2">
-          <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block text-center">
-            Quick 1-Click Role Login
-          </span>
-          <div className="grid grid-cols-3 gap-1.5">
-            <button
-              type="button"
-              onClick={() => fillDemoAccount('ADMIN')}
-              className="px-2.5 py-1.5 bg-white hover:bg-slate-900 hover:text-white text-slate-800 text-xxs font-bold rounded-xl border border-slate-200 shadow-2xs transition-all flex items-center justify-center gap-1 cursor-pointer group"
-            >
-              <ShieldAlert className="h-3 w-3 text-rose-500 group-hover:text-rose-400" />
-              <span>Admin</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => fillDemoAccount('MANAGER')}
-              className="px-2.5 py-1.5 bg-white hover:bg-slate-900 hover:text-white text-slate-800 text-xxs font-bold rounded-xl border border-slate-200 shadow-2xs transition-all flex items-center justify-center gap-1 cursor-pointer group"
-            >
-              <ShieldCheck className="h-3 w-3 text-sky-500 group-hover:text-sky-400" />
-              <span>Manager</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => fillDemoAccount('CASHIER')}
-              className="px-2.5 py-1.5 bg-white hover:bg-slate-900 hover:text-white text-slate-800 text-xxs font-bold rounded-xl border border-slate-200 shadow-2xs transition-all flex items-center justify-center gap-1 cursor-pointer group"
-            >
-              <Shield className="h-3 w-3 text-emerald-500 group-hover:text-emerald-400" />
-              <span>Cashier</span>
-            </button>
-          </div>
         </div>
 
         {error && (
