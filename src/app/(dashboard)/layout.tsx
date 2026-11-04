@@ -150,9 +150,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       {
         title: 'REPORTS',
         items: [
-          { name: 'Sales Trends', href: '/reports/sales-trends', icon: TrendingUp, show: isAdminOrManager },
+          { name: 'Monthly Report', href: '/reports/monthly', icon: CalendarDays, show: isAdminOrManager },
           { name: 'Category Summary', href: '/reports/category-summary', icon: Layers, show: true },
-          { name: 'Financial Reports', href: '/reports', icon: IndianRupee, show: isAdminOrManager },
           { name: 'Employee Summary', href: '/employee-summary', icon: User, show: true },
           { name: 'Shift Closings', href: '/reports/shift-closing', icon: History, show: true },
         ],
@@ -172,7 +171,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     if (isAdmin) {
       return [
         { name: 'Dashboard', href: '/admin/dashboard', icon: LayoutDashboard },
-        { name: 'Reports', href: '/reports', icon: TrendingUp },
+        { name: 'Reports', href: '/reports/monthly', icon: CalendarDays },
         { name: 'Finance', href: '/finance', icon: IndianRupee },
         { name: 'Users', href: '/users', icon: UserCheck },
       ];
@@ -180,7 +179,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     if (userRole === 'MANAGER') {
       return [
         { name: 'Dashboard', href: '/manager/dashboard', icon: LayoutDashboard },
-        { name: 'Reports', href: '/reports', icon: TrendingUp },
+        { name: 'Reports', href: '/reports/monthly', icon: CalendarDays },
         { name: 'Expenses', href: '/expenses', icon: CircleDollarSign },
         { name: 'Shifts', href: '/shifts', icon: History },
       ];
